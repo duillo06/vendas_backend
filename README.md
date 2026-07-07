@@ -44,7 +44,10 @@ docker compose -f docker-compose.dev.yml up -d
 export DJANGO_ENV=development
 python manage.py migrate
 
-# 6. Servidor (porta 8001 — não use 8000 se o projeto principal estiver rodando)
+# 6. Seed do tenant demo
+python manage.py seed_dev
+
+# 7. Servidor (porta 8001 — não use 8000 se o projeto principal estiver rodando)
 python manage.py runserver 8001
 ```
 
@@ -69,13 +72,17 @@ tests/           # pytest
 
 ## Sprint atual
 
-**Sprint 0 — Fundação** (`../vendas_frontend/docs/09-roadmap.md`)
+**Sprint 2 — Auth e Funcionários** (`../vendas_frontend/docs/09-roadmap.md`)
 
-- [x] Django + DRF configurado
-- [x] Settings por ambiente
-- [x] Docker Compose (PostgreSQL, Redis)
-- [x] `core/` — BaseModel, TenantAwareModel, TenantMiddleware
-- [x] `GET /api/v1/health/`
-- [x] pytest + ruff + CI
+- [x] App `accounts`: Employee, Role, RolePermission, EmployeeRole
+- [x] Roles de sistema no onboarding + seed
+- [x] JWT (simplejwt) + `EmployeeJWTAuthentication`
+- [x] `AuthService`: login, refresh, logout (blacklist Redis)
+- [x] Endpoints: `POST /api/v1/auth/login|refresh|logout/`
+- [x] `GET /api/v1/admin/me/` (rota protegida)
+- [x] RBAC: `HasPermission` em `core/permissions/rbac.py`
+- [x] Testes AuthService + endpoints
 
-Próximo: **Sprint 1 — Tenant e Empresa**
+**Credenciais demo:** `admin@demo.com` / `demo1234` (rodar `python manage.py seed_dev`)
+
+Próximo: **Sprint 3 — Catálogo (Backend)**

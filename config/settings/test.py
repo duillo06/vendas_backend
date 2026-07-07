@@ -16,3 +16,6 @@ CACHES = {  # noqa: F811
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
+
+ALLOWED_HOSTS = ["*"]
+DEBUG = True

@@ -20,8 +20,11 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "rest_framework_simplejwt",
     "corsheaders",
     "core",
+    "apps.companies",
+    "apps.accounts",
 ]
 
 MIDDLEWARE = [
@@ -62,7 +65,7 @@ DATABASES = {
         "USER": os.environ.get("POSTGRES_USER", "foodservice"),
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "foodservice"),
         "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5433"),
     }
 }
 
@@ -95,13 +98,13 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS: list[str] = []
 CORS_ALLOW_CREDENTIALS = True
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/1")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6380/1")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6380/2")
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379/0"),
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6380/0"),
     }
 }
 
@@ -110,4 +113,6 @@ APP_VERSION = os.environ.get("APP_VERSION", "1.0.0")
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "employee_id",
 }

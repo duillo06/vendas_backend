@@ -42,14 +42,11 @@ class TenantMiddleware:
         return None
 
     def _get_active_company(self, **filters):
-        try:
-            from apps.companies.models import Company
-        except ImportError:
-            return None
+        from django.http import Http404
+
+        from apps.companies.models import Company
 
         try:
             return Company.objects.get(status="active", **filters)
         except Company.DoesNotExist:
-            from django.http import Http404
-
             raise Http404("Estabelecimento não encontrado") from None
