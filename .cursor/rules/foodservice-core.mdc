@@ -1,0 +1,21 @@
+---
+description: Filosofia do Food Service — código legível e UX guiada (sempre ativo)
+alwaysApply: true
+---
+
+# Food Service — Princípios do Projeto
+
+SaaS multi-tenant genérico. Documentação: `../vendas_frontend/docs/`. Skills: `../vendas_frontend/.cursor/skills/`.
+
+## Código
+
+- Comentários curtos, português informal — nota sua no código, não texto de IA
+- Services com regras críticas; diff mínimo; seguir `docs/10-padroes-de-codigo.md`
+
+## UI/UX (frontend)
+
+- Moderno, interativo, guiado — `docs/11-guia-ui-ux.md` e `docs/04-design-system.md`
+
+## Dev local
+
+API **8001** — `../vendas_frontend/docs/00-portas-locais.md`

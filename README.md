@@ -4,7 +4,19 @@ API REST do **Food Service** (SaaS multi-tenant para Food Service).
 
 **Stack:** Python 3.12, Django 5, DRF, PostgreSQL, Redis, Celery.
 
-Documentação completa em `../vendas_frontend/docs/`.
+Documentação e skills em `../vendas_frontend/docs/` e `../vendas_frontend/.cursor/skills/`.
+
+## Portas locais (projeto secundário)
+
+Este projeto usa portas **alternativas** para não conflitar com o projeto principal (Django `8000`, Vite `5173`):
+
+| Serviço | Porta |
+|---------|-------|
+| API Django | **8001** |
+| Storefront (Vite) | **5174** |
+| Backoffice (Vite) | **5175** |
+
+Detalhes: [`../vendas_frontend/docs/00-portas-locais.md`](../vendas_frontend/docs/00-portas-locais.md)
 
 ## Pré-requisitos
 
@@ -32,11 +44,11 @@ docker compose -f docker-compose.dev.yml up -d
 export DJANGO_ENV=development
 python manage.py migrate
 
-# 6. Servidor
-python manage.py runserver
+# 6. Servidor (porta 8001 — não use 8000 se o projeto principal estiver rodando)
+python manage.py runserver 8001
 ```
 
-Health check: [http://localhost:8000/api/v1/health/](http://localhost:8000/api/v1/health/)
+Health check: [http://localhost:8001/api/v1/health/](http://localhost:8001/api/v1/health/)
 
 ## Testes e lint
 
@@ -57,7 +69,7 @@ tests/           # pytest
 
 ## Sprint atual
 
-**Sprint 0 — Fundação** (`docs/09-roadmap.md`)
+**Sprint 0 — Fundação** (`../vendas_frontend/docs/09-roadmap.md`)
 
 - [x] Django + DRF configurado
 - [x] Settings por ambiente

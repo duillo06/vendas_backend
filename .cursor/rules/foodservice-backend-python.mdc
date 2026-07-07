@@ -1,0 +1,18 @@
+---
+description: Padrões Python/Django Food Service — código legível e comentado
+globs: **/*.py
+alwaysApply: false
+---
+
+# Backend — Qualidade e Comentários
+
+- Views finas; lógica em **services** (`docs/06-backend.md`)
+- Comentários no seu tom: curtos, informais (`# salva`, `# pega pelo subdomínio`); sem “Este método…” nem listas numeradas
+- Type hints, `transaction.atomic()` em pedidos, testes em services críticos
+- Tenant isolation sempre; regras em `docs/08-regras-de-negocio.md`
+
+```python
+# loja fechada = não deixa finalizar
+if not StoreHoursService.is_store_open(tenant):
+    raise BusinessError("STORE_CLOSED", ...)
+```
