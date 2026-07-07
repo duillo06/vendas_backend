@@ -56,5 +56,6 @@ class PublicCompanyView(APIView):
                     }
                     for row in hours
                 ],
+                "theme": settings.theme,
             }
         )

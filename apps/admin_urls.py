@@ -6,9 +6,17 @@ from apps.catalog.views.admin_views import (
     AdminOptionGroupViewSet,
     AdminProductViewSet,
 )
+from apps.companies.views.admin_views import (
+    AdminDashboardView,
+    AdminLogoUploadView,
+    AdminSettingsView,
+)
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),
+    path("dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
+    path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
+    path("settings/logo/", AdminLogoUploadView.as_view(), name="admin-settings-logo"),
     path(
         "categories/",
         AdminCategoryViewSet.as_view({"get": "list", "post": "create"}),
