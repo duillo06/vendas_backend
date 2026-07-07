@@ -11,12 +11,33 @@ from apps.companies.views.admin_views import (
     AdminLogoUploadView,
     AdminSettingsView,
 )
+from apps.orders.views.admin_views import AdminOrderViewSet
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),
     path("dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
     path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
     path("settings/logo/", AdminLogoUploadView.as_view(), name="admin-settings-logo"),
+    path(
+        "orders/",
+        AdminOrderViewSet.as_view({"get": "list"}),
+        name="admin-orders",
+    ),
+    path(
+        "orders/<uuid:pk>/",
+        AdminOrderViewSet.as_view({"get": "retrieve"}),
+        name="admin-order-detail",
+    ),
+    path(
+        "orders/<uuid:pk>/status/",
+        AdminOrderViewSet.as_view({"patch": "update_status"}),
+        name="admin-order-status",
+    ),
+    path(
+        "orders/<uuid:pk>/payment/",
+        AdminOrderViewSet.as_view({"patch": "update_payment"}),
+        name="admin-order-payment",
+    ),
     path(
         "categories/",
         AdminCategoryViewSet.as_view({"get": "list", "post": "create"}),
@@ -60,7 +81,7 @@ urlpatterns = [
     ),
     path(
         "option-groups/<uuid:pk>/",
-        AdminOptionGroupViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        AdminOptionGroupViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
         name="admin-option-group-detail",
     ),
     path(

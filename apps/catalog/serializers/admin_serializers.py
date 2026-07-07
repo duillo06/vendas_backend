@@ -25,7 +25,7 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             "is_active",
             "product_count",
         ]
-        read_only_fields = ["id", "product_count"]
+        read_only_fields = ["id", "product_count", "slug"]
 
     def get_product_count(self, obj):
         return obj.products.filter(deleted_at__isnull=True).count()
@@ -125,7 +125,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "category", "images", "created_at", "updated_at"]
+        read_only_fields = ["id", "category", "images", "created_at", "updated_at", "slug"]
 
     def get_category(self, obj):
         return {

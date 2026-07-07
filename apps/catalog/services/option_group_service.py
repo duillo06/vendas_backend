@@ -60,6 +60,13 @@ class OptionGroupService:
 
     @staticmethod
     @transaction.atomic
+    def delete(group: OptionGroup) -> None:
+        tenant_id = group.tenant_id
+        group.delete()
+        invalidate_catalog_cache(tenant_id)
+
+    @staticmethod
+    @transaction.atomic
     def attach_to_product(*, product: Product, option_group: OptionGroup, sort_order: int = 0):
         ProductOptionGroup.all_objects.get_or_create(
             tenant=product.tenant,

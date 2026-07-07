@@ -1,0 +1,16 @@
+Olá, {{ order.customer_name }}!
+
+Seu pedido {{ order.order_number }} foi recebido em {{ company.trade_name }}.
+
+Total: R$ {{ order.total }}
+
+Itens:
+{% for item in items %}
+- {{ item.quantity }}x {{ item.product_name }} — R$ {{ item.total_price }}
+{% endfor %}
+
+Acompanhe o status do pedido:
+{{ tracking_url }}
+
+Obrigado pela preferência!
+{{ company.trade_name }}

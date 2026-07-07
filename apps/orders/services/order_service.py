@@ -3,12 +3,20 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
 from apps.companies.models import Company
 from apps.companies.services.settings_service import SettingsService
 from apps.customers.services.customer_service import CustomerService
-from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus, PaymentMethod
-from apps.orders.domain.exceptions import EmptyCartError, MinOrderValueError
+from apps.orders.domain.enums import (
+    DeliveryType,
+    OrderSource,
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
+    VALID_TRANSITIONS,
+)
+from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError
 from apps.orders.models import Order, OrderItem, OrderItemOption, OrderPayment, OrderStatusHistory
 from apps.orders.services.cart_validation_service import CartValidationService
 from core.utils.money import round_money
@@ -129,6 +137,63 @@ class OrderService:
             .prefetch_related("items__options", "status_history", "payment")
             .get()
         )
+
+    @staticmethod
+    def get_admin_order(*, tenant: Company, order_id) -> Order:
+        return (
+            Order.objects.filter(id=order_id, tenant=tenant)
+            .select_related("customer", "payment")
+            .prefetch_related("items__options", "status_history__changed_by")
+            .get()
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def update_status(
+        *,
+        order: Order,
+        new_status: str,
+        employee=None,
+        notes: str | None = None,
+    ) -> Order:
+        order = Order.objects.select_for_update().select_related("payment").get(pk=order.pk)
+        current = order.status
+
+        allowed = VALID_TRANSITIONS.get(current, [])
+        if new_status not in allowed:
+            raise InvalidOrderTransition(current, new_status)
+
+        if new_status == OrderStatus.CANCELLED and not (notes or "").strip():
+            raise ValidationError({"notes": "Informe o motivo do cancelamento"})
+
+        now = timezone.now()
+        order.status = new_status
+
+        if new_status == OrderStatus.CONFIRMED:
+            order.confirmed_at = now
+        elif new_status == OrderStatus.COMPLETED:
+            order.completed_at = now
+        elif new_status == OrderStatus.CANCELLED:
+            order.cancelled_at = now
+            order.cancellation_reason = notes.strip()
+
+        order.save()
+        OrderService._record_status(order, current, new_status, employee, notes)
+        return order
+
+    @staticmethod
+    @transaction.atomic
+    def update_payment(*, order: Order, status: str) -> Order:
+        order = Order.objects.select_for_update().select_related("payment").get(pk=order.pk)
+        payment = order.payment
+
+        if status != PaymentStatus.PAID:
+            raise ValidationError({"status": "Status de pagamento inválido"})
+
+        payment.status = PaymentStatus.PAID
+        payment.paid_at = timezone.now()
+        payment.save(update_fields=["status", "paid_at", "updated_at"])
+        return order
 
     @staticmethod
     def _calculate_delivery_fee(*, tenant: Company, delivery_type: str, subtotal: Decimal) -> Decimal:

@@ -53,6 +53,16 @@ python manage.py runserver 8001
 
 Health check: [http://localhost:8001/api/v1/health/](http://localhost:8001/api/v1/health/)
 
+## Deploy (produção)
+
+```bash
+cp .env.production.example .env.production
+# edite secrets
+docker compose -f deploy/docker-compose.prod.yml up -d --build
+```
+
+Guia completo: [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
+
 ## Testes e lint
 
 ```bash
@@ -72,14 +82,14 @@ tests/           # pytest
 
 ## Sprint atual
 
-**Sprint 3 — Catálogo (Backend)** (`../vendas_frontend/docs/09-roadmap.md`)
+**Sprint 10 — Deploy MVP** (`../vendas_frontend/docs/09-roadmap.md`)
 
-- [x] App `catalog`: Category, Product, ProductImage, OptionGroup, Option, ProductOptionGroup
-- [x] ProductService, OptionGroupService, PriceCalculator, CatalogSelector
-- [x] API pública: categories, products, product detail
-- [x] API admin: products, categories, option-groups + upload de imagens
-- [x] Cache Redis + invalidação
-- [x] Seed de cardápio demo (`python manage.py seed_dev`)
-- [x] Testes PriceCalculator + API catálogo
+- [x] `Dockerfile` + Gunicorn
+- [x] `deploy/docker-compose.prod.yml` (PostgreSQL, Redis, API, Celery, Nginx)
+- [x] Celery app + task de e-mail de confirmação de pedido
+- [x] `python manage.py onboard_tenant` — onboarding cliente real
+- [x] Settings produção (segurança, CORS, SMTP, Sentry opcional)
+- [x] `.env.production.example` + `deploy/DEPLOY.md`
+- [x] CI Docker + deploy staging (GitHub Actions)
 
-Próximo: **Sprint 4 — Frontend Base e Design System**
+Próximo: **Sprint 11** — Clientes e conta (V1).

@@ -19,3 +19,5 @@ PASSWORD_HASHERS = [
 
 ALLOWED_HOSTS = ["*"]
 DEBUG = True
+CELERY_TASK_ALWAYS_EAGER = True
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

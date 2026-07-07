@@ -208,6 +208,14 @@ class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
         group = OptionGroupService.update(group=group, data=serializer.validated_data)
         return Response(OptionGroupAdminSerializer(group).data)
 
+    def destroy(self, request, pk=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        group = OptionGroup.objects.get(pk=pk, tenant=self.get_tenant())
+        OptionGroupService.delete(group)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=True, methods=["post"], url_path="options")
     def create_option(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):

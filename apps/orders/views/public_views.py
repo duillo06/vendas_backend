@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import Http404
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -7,6 +8,7 @@ from rest_framework.views import APIView
 from apps.orders.models import Order
 from apps.orders.serializers.public_serializers import CheckoutSerializer, OrderPublicSerializer
 from apps.orders.services.order_service import OrderService
+from apps.orders.tasks import send_order_confirmation_email
 from core.tenancy.context import TenantContext
 
 
@@ -27,6 +29,7 @@ class CheckoutView(PublicOrderMixin, APIView):
 
         tenant = self.get_tenant()
         order = OrderService.create_from_checkout(tenant=tenant, data=serializer.validated_data)
+        transaction.on_commit(lambda: send_order_confirmation_email.delay(str(order.id)))
         return Response(OrderPublicSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
