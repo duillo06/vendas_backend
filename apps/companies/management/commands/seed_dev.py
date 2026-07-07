@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from apps.accounts.models import Employee
 from apps.accounts.services.employee_service import EmployeeService
 from apps.accounts.services.role_service import RoleService
+from apps.catalog.services.seed_catalog import seed_demo_catalog
 from apps.companies.models import Company
 from apps.companies.services.onboarding_service import OnboardingService
 
@@ -29,6 +30,7 @@ class Command(BaseCommand):
                     f"Tenant demo criado: {company.trade_name} ({company.subdomain})"
                 )
             )
+            seed_demo_catalog(company)
             return
 
         RoleService.create_system_roles(company)
@@ -42,6 +44,6 @@ class Command(BaseCommand):
                 last_name="Demo",
             )
             self.stdout.write(self.style.SUCCESS("Owner admin@demo.com criado no tenant demo."))
-            return
 
-        self.stdout.write(self.style.WARNING("Tenant demo já existe, pulando."))
+        seed_demo_catalog(company)
+        self.stdout.write(self.style.SUCCESS("Cardápio demo verificado/criado."))

@@ -7,6 +7,18 @@ from apps.accounts.services.auth_service import AuthService
 
 
 class EmployeeJWTAuthentication(JWTAuthentication):
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result is None:
+            return None
+
+        principal, validated_token = result
+        from core.tenancy.context import TenantContext
+
+        TenantContext.set(principal.employee.tenant)
+        request.tenant = principal.employee.tenant
+        return principal, validated_token
+
     def get_user(self, validated_token):
         employee_id = validated_token.get("employee_id")
         if not employee_id:

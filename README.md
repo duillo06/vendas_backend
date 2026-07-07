@@ -72,17 +72,14 @@ tests/           # pytest
 
 ## Sprint atual
 
-**Sprint 2 — Auth e Funcionários** (`../vendas_frontend/docs/09-roadmap.md`)
+**Sprint 3 — Catálogo (Backend)** (`../vendas_frontend/docs/09-roadmap.md`)
 
-- [x] App `accounts`: Employee, Role, RolePermission, EmployeeRole
-- [x] Roles de sistema no onboarding + seed
-- [x] JWT (simplejwt) + `EmployeeJWTAuthentication`
-- [x] `AuthService`: login, refresh, logout (blacklist Redis)
-- [x] Endpoints: `POST /api/v1/auth/login|refresh|logout/`
-- [x] `GET /api/v1/admin/me/` (rota protegida)
-- [x] RBAC: `HasPermission` em `core/permissions/rbac.py`
-- [x] Testes AuthService + endpoints
+- [x] App `catalog`: Category, Product, ProductImage, OptionGroup, Option, ProductOptionGroup
+- [x] ProductService, OptionGroupService, PriceCalculator, CatalogSelector
+- [x] API pública: categories, products, product detail
+- [x] API admin: products, categories, option-groups + upload de imagens
+- [x] Cache Redis + invalidação
+- [x] Seed de cardápio demo (`python manage.py seed_dev`)
+- [x] Testes PriceCalculator + API catálogo
 
-**Credenciais demo:** `admin@demo.com` / `demo1234` (rodar `python manage.py seed_dev`)
-
-Próximo: **Sprint 3 — Catálogo (Backend)**
+Próximo: **Sprint 4 — Frontend Base e Design System**

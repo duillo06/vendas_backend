@@ -1,8 +1,18 @@
 from rest_framework.exceptions import APIException
 from rest_framework.views import exception_handler
 
+from core.exceptions.domain import DomainException
+
 
 def custom_exception_handler(exc, context):
+    if isinstance(exc, DomainException):
+        from rest_framework.response import Response
+
+        return Response(
+            {"error": {"code": exc.code, "message": exc.message}},
+            status=422,
+        )
+
     response = exception_handler(exc, context)
     if response is None:
         return None

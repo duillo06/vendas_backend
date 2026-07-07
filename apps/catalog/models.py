@@ -1,0 +1,207 @@
+from decimal import Decimal
+
+from django.db import models
+
+from apps.catalog.domain.enums import OptionPriceType, OptionSelectionType
+from core.models.base import SoftDeleteModel
+from core.models.tenant_model import TenantAwareModel
+from core.tenancy.managers import TenantManager, TenantQuerySet
+
+
+class SoftDeleteTenantQuerySet(TenantQuerySet):
+    def alive(self):
+        return self.filter(deleted_at__isnull=True)
+
+
+class SoftDeleteTenantManager(TenantManager):
+    def get_queryset(self):
+        return SoftDeleteTenantQuerySet(self.model, using=self._db).alive()
+
+
+class Category(TenantAwareModel, SoftDeleteModel):
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+        db_column="parent_id",
+    )
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(max_length=120)
+    description = models.TextField(blank=True, null=True)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    sort_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    objects = SoftDeleteTenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = "categories"
+        ordering = ["sort_order", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "slug"], name="uniq_category_tenant_slug"),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "is_active", "sort_order"]),
+            models.Index(fields=["tenant", "parent"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Product(TenantAwareModel, SoftDeleteModel):
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.PROTECT,
+        related_name="products",
+        db_column="category_id",
+    )
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220)
+    description = models.TextField(blank=True, null=True)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    compare_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+    )
+    sku = models.CharField(max_length=50, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    is_available = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+    prep_time = models.PositiveIntegerField(blank=True, null=True)
+    calories = models.PositiveIntegerField(blank=True, null=True)
+    tags = models.JSONField(default=list, blank=True)
+    metadata = models.JSONField(blank=True, null=True)
+
+    objects = SoftDeleteTenantManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        db_table = "products"
+        ordering = ["sort_order", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "slug"], name="uniq_product_tenant_slug"),
+            models.CheckConstraint(
+                condition=models.Q(base_price__gte=0),
+                name="products_positive_price",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "category", "is_active", "sort_order"]),
+            models.Index(fields=["tenant", "is_available"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ProductImage(TenantAwareModel):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="images",
+        db_column="product_id",
+    )
+    image_url = models.CharField(max_length=500)
+    alt_text = models.CharField(max_length=200, blank=True, null=True)
+    sort_order = models.IntegerField(default=0)
+    is_primary = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "product_images"
+        ordering = ["sort_order", "created_at"]
+
+    def __str__(self) -> str:
+        return f"Imagem {self.product.name}"
+
+
+class OptionGroup(TenantAwareModel):
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    selection_type = models.CharField(
+        max_length=20,
+        choices=OptionSelectionType.choices,
+        default=OptionSelectionType.SINGLE,
+    )
+    min_selections = models.PositiveIntegerField(default=0)
+    max_selections = models.PositiveIntegerField(default=1)
+    is_required = models.BooleanField(default=False)
+    sort_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "option_groups"
+        ordering = ["sort_order", "name"]
+        indexes = [
+            models.Index(fields=["tenant", "is_active"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Option(TenantAwareModel):
+    option_group = models.ForeignKey(
+        OptionGroup,
+        on_delete=models.CASCADE,
+        related_name="options",
+        db_column="option_group_id",
+    )
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=255, blank=True, null=True)
+    price_modifier = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    price_type = models.CharField(
+        max_length=20,
+        choices=OptionPriceType.choices,
+        default=OptionPriceType.FIXED,
+    )
+    is_active = models.BooleanField(default=True)
+    is_available = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "options"
+        ordering = ["sort_order", "name"]
+        indexes = [
+            models.Index(fields=["option_group", "is_active", "sort_order"]),
+            models.Index(fields=["tenant", "option_group"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ProductOptionGroup(TenantAwareModel):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="product_option_groups",
+        db_column="product_id",
+    )
+    option_group = models.ForeignKey(
+        OptionGroup,
+        on_delete=models.CASCADE,
+        related_name="product_option_groups",
+        db_column="option_group_id",
+    )
+    sort_order = models.IntegerField(default=0)
+    override_min = models.PositiveIntegerField(blank=True, null=True)
+    override_max = models.PositiveIntegerField(blank=True, null=True)
+
+    class Meta:
+        db_table = "product_option_groups"
+        ordering = ["sort_order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "option_group"],
+                name="uniq_product_option_group",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["product", "sort_order"]),
+        ]
