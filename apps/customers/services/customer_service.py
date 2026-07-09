@@ -1,8 +1,9 @@
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 
+from apps.companies.models import Company
 from apps.customers.domain.validators import normalize_phone, split_customer_name
 from apps.customers.models import Customer
-from apps.companies.models import Company
 
 
 class CustomerService:
@@ -38,6 +39,45 @@ class CustomerService:
                 update_fields=["first_name", "last_name", "email", "deleted_at", "is_active", "updated_at"]
             )
 
+        return customer
+
+    @staticmethod
+    def update_from_checkout(
+        *,
+        customer: Customer,
+        name: str,
+        phone: str,
+        email: str | None = None,
+    ) -> Customer:
+        normalized_phone = normalize_phone(phone)
+        first_name, last_name = split_customer_name(name)
+
+        conflict = (
+            Customer.all_objects.filter(tenant=customer.tenant, phone=normalized_phone)
+            .exclude(pk=customer.pk)
+            .exists()
+        )
+        if conflict:
+            raise ValidationError({"customer_phone": "Telefone já usado por outra conta"})
+
+        customer.first_name = first_name
+        customer.last_name = last_name
+        customer.phone = normalized_phone
+        if email:
+            customer.email = email
+        customer.deleted_at = None
+        customer.is_active = True
+        customer.save(
+            update_fields=[
+                "first_name",
+                "last_name",
+                "phone",
+                "email",
+                "deleted_at",
+                "is_active",
+                "updated_at",
+            ]
+        )
         return customer
 
     @staticmethod

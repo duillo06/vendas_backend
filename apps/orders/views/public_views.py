@@ -5,6 +5,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.authentication import CustomerJWTAuthentication
+from apps.accounts.principal import CustomerPrincipal
 from apps.orders.models import Order
 from apps.orders.serializers.public_serializers import CheckoutSerializer, OrderPublicSerializer
 from apps.orders.services.order_service import OrderService
@@ -22,13 +24,23 @@ class PublicOrderMixin:
 
 class CheckoutView(PublicOrderMixin, APIView):
     permission_classes = [AllowAny]
+    authentication_classes = [CustomerJWTAuthentication]
 
     def post(self, request):
-        serializer = CheckoutSerializer(data=request.data)
+        serializer = CheckoutSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
         tenant = self.get_tenant()
-        order = OrderService.create_from_checkout(tenant=tenant, data=serializer.validated_data)
+        authenticated_customer = None
+        user = getattr(request, "user", None)
+        if isinstance(user, CustomerPrincipal):
+            authenticated_customer = user.customer
+
+        order = OrderService.create_from_checkout(
+            tenant=tenant,
+            data=serializer.validated_data,
+            authenticated_customer=authenticated_customer,
+        )
         transaction.on_commit(lambda: send_order_confirmation_email.delay(str(order.id)))
         return Response(OrderPublicSerializer(order).data, status=status.HTTP_201_CREATED)
 

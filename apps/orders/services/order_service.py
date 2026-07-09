@@ -25,7 +25,12 @@ from core.utils.money import round_money
 class OrderService:
     @staticmethod
     @transaction.atomic
-    def create_from_checkout(*, tenant: Company, data: dict) -> Order:
+    def create_from_checkout(
+        *,
+        tenant: Company,
+        data: dict,
+        authenticated_customer=None,
+    ) -> Order:
         items = data.get("items") or []
         if not items:
             raise EmptyCartError()
@@ -59,12 +64,22 @@ class OrderService:
 
                 raise ValidationError({"change_for": "Troco deve ser maior que o total"})
 
-        customer = CustomerService.get_or_create_from_checkout(
-            tenant=tenant,
-            name=data["customer_name"],
-            phone=data["customer_phone"],
-            email=data.get("customer_email"),
-        )
+        if authenticated_customer is not None:
+            if authenticated_customer.tenant_id != tenant.id:
+                raise ValidationError({"customer_id": "Cliente não pertence a este estabelecimento"})
+            customer = CustomerService.update_from_checkout(
+                customer=authenticated_customer,
+                name=data["customer_name"],
+                phone=data["customer_phone"],
+                email=data.get("customer_email"),
+            )
+        else:
+            customer = CustomerService.get_or_create_from_checkout(
+                tenant=tenant,
+                name=data["customer_name"],
+                phone=data["customer_phone"],
+                email=data.get("customer_email"),
+            )
 
         order_number = OrderService._generate_order_number(tenant)
         now = timezone.now()

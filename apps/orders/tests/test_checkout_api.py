@@ -4,7 +4,6 @@ from django.test import override_settings
 from apps.catalog.services.seed_catalog import seed_demo_catalog
 from apps.companies.services.onboarding_service import OnboardingService
 from apps.companies.services.settings_service import SettingsService
-from apps.companies.services.store_hours_service import StoreHoursService
 
 
 @pytest.fixture
@@ -57,6 +56,104 @@ def test_checkout_happy_path(api_client, demo_store, x_burger_option_ids):
     assert body["status"] == "pending"
     assert body["order_number"] == "#0001"
     assert body["total"] >= 22
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_authenticated_customer_links_order(api_client, demo_store, x_burger_option_ids):
+    from apps.accounts.services.customer_auth_service import CustomerAuthService
+    from apps.customers.models import Customer, CustomerAddress
+    from apps.orders.models import Order
+
+    product_id, options = x_burger_option_ids
+
+    auth = CustomerAuthService.register(
+        tenant=demo_store,
+        phone="(11) 98888-7777",
+        password="senha1234",
+        first_name="Maria",
+        last_name="Santos",
+        email="maria@example.com",
+    )
+    customer_id = auth["customer"]["id"]
+
+    customer = Customer.objects.get(id=customer_id)
+
+    CustomerAddress.objects.create(
+        tenant=demo_store,
+        customer=customer,
+        label="Casa",
+        street="Rua das Flores",
+        number="100",
+        neighborhood="Centro",
+        city="São Paulo",
+        state="SP",
+        zip_code="01310-100",
+        is_default=True,
+    )
+
+    payload = {
+        "customer_id": customer_id,
+        "customer_name": "Maria Santos",
+        "customer_phone": "(11) 98888-7777",
+        "customer_email": "maria@example.com",
+        "delivery_type": "delivery",
+        "payment_method": "pix",
+        "address": {
+            "street": "Rua das Flores",
+            "number": "100",
+            "complement": "",
+            "neighborhood": "Centro",
+            "city": "São Paulo",
+            "state": "SP",
+            "zip_code": "01310-100",
+            "reference": "",
+        },
+        "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+    }
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        payload,
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+        HTTP_AUTHORIZATION=f"Bearer {auth['access']}",
+    )
+
+    assert response.status_code == 201
+    order = Order.objects.get(id=response.json()["id"])
+    assert str(order.customer_id) == customer_id
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_guest_rejects_customer_id(api_client, demo_store, x_burger_option_ids):
+    from apps.accounts.services.customer_auth_service import CustomerAuthService
+
+    product_id, options = x_burger_option_ids
+    auth = CustomerAuthService.register(
+        tenant=demo_store,
+        phone="(11) 97777-6666",
+        password="senha1234",
+        first_name="João",
+    )
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {
+            "customer_id": auth["customer"]["id"],
+            "customer_name": "João",
+            "customer_phone": "(11) 97777-6666",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+        },
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 400
+    assert "customer_id" in response.json()
 
 
 @pytest.mark.django_db

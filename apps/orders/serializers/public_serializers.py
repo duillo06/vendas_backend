@@ -32,6 +32,7 @@ class CheckoutSerializer(serializers.Serializer):
     customer_name = serializers.CharField(min_length=2, max_length=200)
     customer_phone = serializers.CharField(max_length=20)
     customer_email = serializers.EmailField(required=False, allow_blank=True)
+    customer_id = serializers.UUIDField(required=False, allow_null=True)
     delivery_type = serializers.ChoiceField(choices=DeliveryType.choices)
     payment_method = serializers.ChoiceField(choices=PaymentMethod.choices)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
@@ -64,6 +65,23 @@ class CheckoutSerializer(serializers.Serializer):
 
         if attrs.get("customer_email") == "":
             attrs["customer_email"] = None
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None) if request else None
+        customer_id = attrs.get("customer_id")
+
+        from apps.accounts.principal import CustomerPrincipal
+
+        if isinstance(user, CustomerPrincipal):
+            if customer_id and str(user.customer.id) != str(customer_id):
+                raise serializers.ValidationError(
+                    {"customer_id": "Cliente não corresponde à sessão autenticada"}
+                )
+            attrs["customer_id"] = user.customer.id
+        elif customer_id:
+            raise serializers.ValidationError(
+                {"customer_id": "Autenticação necessária para vincular o pedido à conta"}
+            )
 
         return attrs
 
