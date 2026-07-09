@@ -88,6 +88,8 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Base absoluta pra URLs de imagem no JSON (Vite não serve /media/)
+MEDIA_PUBLIC_BASE_URL = os.environ.get("MEDIA_PUBLIC_BASE_URL", "http://localhost:8001")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

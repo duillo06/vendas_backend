@@ -6,6 +6,7 @@ from django.db import transaction
 from apps.companies.models import BusinessHours, Company, CompanySettings
 from apps.companies.services.business_hours_service import BusinessHoursService
 from apps.companies.services.settings_service import SettingsService
+from core.utils.media import absolutize_media_url
 
 COMPANY_FIELDS = {"legal_name", "trade_name", "document", "email", "phone", "description"}
 
@@ -40,7 +41,7 @@ class CompanyAdminService:
             "email": company.email,
             "phone": company.phone,
             "description": company.description,
-            "logo_url": company.logo_url,
+            "logo_url": absolutize_media_url(company.logo_url),
         }
 
     @staticmethod

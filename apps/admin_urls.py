@@ -11,6 +11,7 @@ from apps.companies.views.admin_views import (
     AdminLogoUploadView,
     AdminSettingsView,
 )
+from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
 
 urlpatterns = [
@@ -94,4 +95,6 @@ urlpatterns = [
         AdminOptionGroupViewSet.as_view({"patch": "manage_option", "delete": "manage_option"}),
         name="admin-option-group-option-detail",
     ),
+    path("customers/", AdminCustomerListView.as_view(), name="admin-customers"),
+    path("customers/<uuid:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
 ]

@@ -6,6 +6,7 @@ from apps.catalog.models import (
     Product,
     ProductOptionGroup,
 )
+from core.utils.media import absolutize_media_url
 
 
 class CategoryPublicSerializer(serializers.ModelSerializer):
@@ -33,7 +34,7 @@ class CategoryPublicSerializer(serializers.ModelSerializer):
             "name": instance.name,
             "slug": instance.slug,
             "description": instance.description,
-            "image_url": instance.image_url,
+            "image_url": absolutize_media_url(instance.image_url, self.context.get("request")),
             "sort_order": instance.sort_order,
             "product_count": product_count,
         }
@@ -70,9 +71,9 @@ class ProductListPublicSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         primary = next((img for img in obj.images.all() if img.is_primary), None)
         if primary:
-            return primary.image_url
+            return absolutize_media_url(primary.image_url, self.context.get("request"))
         first = obj.images.first()
-        return first.image_url if first else None
+        return absolutize_media_url(first.image_url, self.context.get("request")) if first else None
 
     def get_has_options(self, obj):
         if hasattr(obj, "option_groups_count"):
@@ -143,10 +144,11 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         ]
 
     def get_images(self, obj):
+        request = self.context.get("request")
         return [
             {
                 "id": str(img.id),
-                "image_url": img.image_url,
+                "image_url": absolutize_media_url(img.image_url, request),
                 "alt_text": img.alt_text,
                 "is_primary": img.is_primary,
             }

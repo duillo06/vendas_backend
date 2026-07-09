@@ -4,7 +4,12 @@ from core.tenancy.context import TenantContext
 class TenantMiddleware:
     """Resolve tenant por subdomínio (storefront) ou header (backoffice). Sprint 1 completa resolução."""
 
-    EXEMPT_PREFIXES = ("/api/v1/auth/", "/api/v1/health/")
+    EXEMPT_PREFIXES = (
+        "/api/v1/health/",
+        "/api/v1/auth/login/",
+        "/api/v1/auth/refresh/",
+        "/api/v1/auth/logout/",
+    )
 
     def __init__(self, get_response):
         self.get_response = get_response

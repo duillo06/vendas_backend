@@ -7,6 +7,7 @@ from apps.catalog.models import (
     Product,
     ProductImage,
 )
+from core.utils.media import absolutize_media_url
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):
@@ -33,6 +34,7 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["id"] = str(instance.id)
+        data["image_url"] = absolutize_media_url(instance.image_url, self.context.get("request"))
         if instance.parent_id:
             data["parent_id"] = str(instance.parent_id)
         else:
@@ -49,7 +51,7 @@ class ProductImageSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         return {
             "id": str(instance.id),
-            "image_url": instance.image_url,
+            "image_url": absolutize_media_url(instance.image_url, self.context.get("request")),
             "alt_text": instance.alt_text,
             "is_primary": instance.is_primary,
             "sort_order": instance.sort_order,
@@ -84,7 +86,9 @@ class ProductAdminListSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj):
         primary = obj.images.filter(is_primary=True).first() or obj.images.first()
-        return primary.image_url if primary else None
+        if not primary:
+            return None
+        return absolutize_media_url(primary.image_url, self.context.get("request"))
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -95,6 +99,7 @@ class ProductAdminListSerializer(serializers.ModelSerializer):
 
 class ProductAdminDetailSerializer(serializers.ModelSerializer):
     category = serializers.SerializerMethodField()
+    category_id = serializers.UUIDField()
     images = ProductImageSerializer(many=True, read_only=True)
     option_group_ids = serializers.ListField(
         child=serializers.UUIDField(),
@@ -126,6 +131,14 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "category", "images", "created_at", "updated_at", "slug"]
+
+    def validate_category_id(self, value):
+        from core.tenancy.context import TenantContext
+
+        tenant = TenantContext.get()
+        if not Category.objects.filter(id=value, tenant=tenant).exists():
+            raise serializers.ValidationError("Categoria inválida")
+        return value
 
     def get_category(self, obj):
         return {

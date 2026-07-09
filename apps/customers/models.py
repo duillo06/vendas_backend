@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 
 from core.models.base import BaseModel, SoftDeleteModel
@@ -27,3 +28,48 @@ class Customer(TenantAwareModel, SoftDeleteModel):
 
     def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}".strip() or self.phone
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+    def set_password(self, raw_password: str) -> None:
+        self.password_hash = make_password(raw_password)
+
+    def check_password(self, raw_password: str) -> bool:
+        if not self.password_hash:
+            return False
+        return check_password(raw_password, self.password_hash)
+
+    @property
+    def has_account(self) -> bool:
+        return bool(self.password_hash)
+
+
+class CustomerAddress(TenantAwareModel):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="addresses",
+        db_column="customer_id",
+    )
+    label = models.CharField(max_length=50, blank=True, default="")
+    street = models.CharField(max_length=255)
+    number = models.CharField(max_length=20)
+    complement = models.CharField(max_length=100, blank=True, default="")
+    neighborhood = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=2)
+    zip_code = models.CharField(max_length=9)
+    reference = models.CharField(max_length=255, blank=True, default="")
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "customer_addresses"
+        ordering = ["-is_default", "-created_at"]
+        indexes = [
+            models.Index(fields=["customer"]),
+            models.Index(fields=["tenant", "customer"]),
+        ]

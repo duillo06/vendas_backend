@@ -156,7 +156,7 @@ class OrderService:
         employee=None,
         notes: str | None = None,
     ) -> Order:
-        order = Order.objects.select_for_update().select_related("payment").get(pk=order.pk)
+        order = Order.objects.select_for_update().get(pk=order.pk)
         current = order.status
 
         allowed = VALID_TRANSITIONS.get(current, [])
@@ -184,7 +184,7 @@ class OrderService:
     @staticmethod
     @transaction.atomic
     def update_payment(*, order: Order, status: str) -> Order:
-        order = Order.objects.select_for_update().select_related("payment").get(pk=order.pk)
+        order = Order.objects.select_for_update().get(pk=order.pk)
         payment = order.payment
 
         if status != PaymentStatus.PAID:

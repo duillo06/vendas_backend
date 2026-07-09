@@ -25,7 +25,9 @@ class PublicCategoryListView(PublicCatalogMixin, APIView):
     def get(self, request):
         tenant = self.get_tenant()
         categories = CatalogSelector.get_categories(tenant.id)
-        data = CategoryPublicSerializer(categories, many=True).data
+        data = CategoryPublicSerializer(
+            categories, many=True, context={"request": request}
+        ).data
         return Response(data)
 
 
@@ -41,7 +43,7 @@ class PublicProductListView(PublicCatalogMixin, APIView):
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(qs, request)
-        serializer = ProductListPublicSerializer(page, many=True)
+        serializer = ProductListPublicSerializer(page, many=True, context={"request": request})
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -55,4 +57,6 @@ class PublicProductDetailView(PublicCatalogMixin, APIView):
         except Product.DoesNotExist:
             raise Http404("Produto não encontrado") from None
 
-        return Response(ProductDetailPublicSerializer(product).data)
+        return Response(
+            ProductDetailPublicSerializer(product, context={"request": request}).data
+        )

@@ -65,7 +65,9 @@ class AdminLogoUploadView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        return Response({"logo_url": logo_url})
+        from core.utils.media import absolutize_media_url
+
+        return Response({"logo_url": absolutize_media_url(logo_url, request)})
 
 
 class AdminDashboardView(APIView):

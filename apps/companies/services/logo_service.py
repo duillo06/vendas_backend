@@ -13,7 +13,7 @@ class CompanyLogoService:
         validate_product_image(image_file)
 
         ext = os.path.splitext(image_file.name)[1] or ".jpg"
-        filename = f"media/{company.id}/logo/{uuid.uuid4()}{ext}"
+        filename = f"{company.id}/logo/{uuid.uuid4()}{ext}"
         saved_path = default_storage.save(filename, image_file)
         image_url = default_storage.url(saved_path)
 

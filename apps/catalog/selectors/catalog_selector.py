@@ -104,7 +104,8 @@ class ProductImageService:
             raise ImageLimitExceeded()
 
         ext = os.path.splitext(image_file.name)[1] or ".jpg"
-        filename = f"media/{product.tenant_id}/products/{uuid.uuid4()}{ext}"
+        # path relativo ao MEDIA_ROOT — sem prefixo "media/" (senão vira /media/media/...)
+        filename = f"{product.tenant_id}/products/{uuid.uuid4()}{ext}"
         saved_path = default_storage.save(filename, image_file)
         image_url = default_storage.url(saved_path)
 

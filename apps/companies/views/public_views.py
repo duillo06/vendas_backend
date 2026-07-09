@@ -7,6 +7,7 @@ from apps.companies.models import BusinessHours
 from apps.companies.services.settings_service import SettingsService
 from apps.companies.services.store_hours_service import StoreHoursService
 from core.tenancy.context import TenantContext
+from core.utils.media import absolutize_media_url
 
 DAY_NAMES = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
 
@@ -28,8 +29,8 @@ class PublicCompanyView(APIView):
                 "trade_name": tenant.trade_name,
                 "slug": tenant.slug,
                 "description": tenant.description,
-                "logo_url": tenant.logo_url,
-                "cover_url": tenant.cover_url,
+                "logo_url": absolutize_media_url(tenant.logo_url, request),
+                "cover_url": absolutize_media_url(tenant.cover_url, request),
                 "phone": tenant.phone,
                 "is_open": StoreHoursService.is_store_open(tenant),
                 "settings": {
