@@ -109,6 +109,7 @@ class OrderItemOption(TenantAwareModel):
     option_group_name = models.CharField(max_length=100)
     option_name = models.CharField(max_length=100)
     price_modifier = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField(default=1)
     option = models.ForeignKey(
         "catalog.Option",
         on_delete=models.SET_NULL,

@@ -76,14 +76,35 @@ urlpatterns = [
         name="admin-product-image-detail",
     ),
     path(
+        "products/<uuid:pk>/option-groups/reorder/",
+        AdminProductViewSet.as_view({"patch": "reorder_option_groups"}),
+        name="admin-product-option-groups-reorder",
+    ),
+    path(
         "option-groups/",
-        AdminOptionGroupViewSet.as_view({"get": "list", "post": "create"}),
+        AdminOptionGroupViewSet.as_view({"get": "list", "post": "create", "patch": "reorder_groups"}),
         name="admin-option-groups",
     ),
     path(
         "option-groups/<uuid:pk>/",
-        AdminOptionGroupViewSet.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
+        AdminOptionGroupViewSet.as_view(
+            {
+                "get": "retrieve",
+                "patch": "partial_update",
+                "delete": "destroy",
+            },
+        ),
         name="admin-option-group-detail",
+    ),
+    path(
+        "option-groups/<uuid:pk>/duplicate/",
+        AdminOptionGroupViewSet.as_view({"post": "duplicate_group"}),
+        name="admin-option-group-duplicate",
+    ),
+    path(
+        "option-groups/<uuid:pk>/options/reorder/",
+        AdminOptionGroupViewSet.as_view({"patch": "reorder_options"}),
+        name="admin-option-group-options-reorder",
     ),
     path(
         "option-groups/<uuid:pk>/options/",
@@ -94,6 +115,11 @@ urlpatterns = [
         "option-groups/<uuid:pk>/options/<uuid:option_id>/",
         AdminOptionGroupViewSet.as_view({"patch": "manage_option", "delete": "manage_option"}),
         name="admin-option-group-option-detail",
+    ),
+    path(
+        "option-groups/<uuid:pk>/options/<uuid:option_id>/duplicate/",
+        AdminOptionGroupViewSet.as_view({"post": "duplicate_option"}),
+        name="admin-option-group-option-duplicate",
     ),
     path("customers/", AdminCustomerListView.as_view(), name="admin-customers"),
     path("customers/<uuid:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),

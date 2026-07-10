@@ -6,6 +6,7 @@ from apps.catalog.models import (
     Product,
     ProductOptionGroup,
 )
+from apps.catalog.services.group_config import effective_group_fields
 from core.utils.media import absolutize_media_url
 
 
@@ -94,34 +95,69 @@ class ProductListPublicSerializer(serializers.ModelSerializer):
 class OptionPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
-        fields = ["id", "name", "price_modifier", "price_type", "is_available"]
+        fields = [
+            "id",
+            "name",
+            "description",
+            "price_modifier",
+            "price_type",
+            "is_available",
+            "image_url",
+            "icon",
+            "stock_quantity",
+            "metadata",
+        ]
 
     def to_representation(self, instance):
+        request = self.context.get("request")
+        in_stock = instance.stock_quantity is None or instance.stock_quantity > 0
         return {
             "id": str(instance.id),
             "name": instance.name,
+            "description": instance.description,
             "price_modifier": float(instance.price_modifier),
             "price_type": instance.price_type,
-            "is_available": instance.is_available,
+            "is_available": instance.is_available and in_stock,
+            "image_url": absolutize_media_url(instance.image_url, request),
+            "icon": instance.icon or None,
+            "stock_quantity": instance.stock_quantity,
+            "metadata": instance.metadata or None,
         }
 
 
 class OptionGroupPublicSerializer(serializers.Serializer):
     def to_representation(self, link: ProductOptionGroup):
         group = link.option_group
-        min_sel = link.override_min if link.override_min is not None else group.min_selections
-        max_sel = link.override_max if link.override_max is not None else group.max_selections
+        effective = effective_group_fields(link)
+        request = self.context.get("request")
+
+        if effective["visibility"] == "hidden":
+            return None
+
+        options = [
+            opt
+            for opt in OptionPublicSerializer(group.options.all(), many=True, context=self.context).data
+            if opt is not None
+        ]
 
         return {
             "id": str(group.id),
-            "name": group.name,
-            "description": group.description,
-            "selection_type": group.selection_type,
-            "min_selections": min_sel,
-            "max_selections": max_sel,
-            "is_required": group.is_required,
+            "name": effective["name"],
+            "description": effective["description"],
+            "selection_type": effective["selection_type"],
+            "selection_mode": effective["selection_mode"],
+            "display_type": effective["display_type"],
+            "min_selections": effective["min_selections"],
+            "max_selections": effective["max_selections"],
+            "is_required": effective["is_required"],
             "sort_order": link.sort_order,
-            "options": OptionPublicSerializer(group.options.all(), many=True).data,
+            "icon": effective["icon"],
+            "image_url": absolutize_media_url(effective["image_url"], request),
+            "visibility": effective["visibility"],
+            "pricing_config": effective["pricing_config"],
+            "ui_config": effective["ui_config"],
+            "default_option_ids": effective["default_option_ids"],
+            "options": options,
         }
 
 
@@ -159,7 +195,8 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
 
     def get_option_groups(self, obj):
         links = obj.product_option_groups.all()
-        return OptionGroupPublicSerializer(links, many=True).data
+        groups = OptionGroupPublicSerializer(links, many=True, context=self.context).data
+        return [group for group in groups if group is not None]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

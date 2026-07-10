@@ -6,6 +6,7 @@ from apps.catalog.models import (
     OptionGroup,
     Product,
     ProductImage,
+    ProductOptionGroup,
 )
 from core.utils.media import absolutize_media_url
 
@@ -104,6 +105,17 @@ class ProductAdminListSerializer(serializers.ModelSerializer):
         return data
 
 
+class ProductOptionGroupWriteSerializer(serializers.Serializer):
+    option_group_id = serializers.UUIDField()
+    sort_order = serializers.IntegerField(required=False, default=0)
+    override_min = serializers.IntegerField(required=False, allow_null=True)
+    override_max = serializers.IntegerField(required=False, allow_null=True)
+    override_required = serializers.BooleanField(required=False, allow_null=True)
+    override_display_type = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    override_pricing_config = serializers.JSONField(required=False, allow_null=True)
+    override_ui_config = serializers.JSONField(required=False, allow_null=True)
+
+
 class ProductAdminDetailSerializer(serializers.ModelSerializer):
     category = serializers.SerializerMethodField()
     category_id = serializers.UUIDField()
@@ -113,6 +125,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+    product_option_groups = ProductOptionGroupWriteSerializer(many=True, required=False, write_only=True)
 
     class Meta:
         model = Product
@@ -134,6 +147,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "metadata",
             "images",
             "option_group_ids",
+            "product_option_groups",
             "created_at",
             "updated_at",
         ]
@@ -161,6 +175,14 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         data["base_price"] = float(instance.base_price)
         if instance.compare_price is not None:
             data["compare_price"] = float(instance.compare_price)
+        links = instance.product_option_groups.select_related("option_group").prefetch_related(
+            "option_group__options",
+        ).order_by("sort_order")
+        data["product_option_groups"] = ProductOptionGroupReadSerializer(
+            links,
+            many=True,
+            context=self.context,
+        ).data
         data["option_group_ids"] = [
             str(link.option_group_id) for link in instance.product_option_groups.all()
         ]
@@ -179,6 +201,10 @@ class OptionAdminSerializer(serializers.ModelSerializer):
             "is_active",
             "is_available",
             "sort_order",
+            "image_url",
+            "icon",
+            "stock_quantity",
+            "metadata",
         ]
         read_only_fields = ["id"]
 
@@ -186,6 +212,7 @@ class OptionAdminSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["id"] = str(instance.id)
         data["price_modifier"] = float(instance.price_modifier)
+        data["image_url"] = absolutize_media_url(instance.image_url, self.context.get("request"))
         return data
 
 
@@ -200,11 +227,19 @@ class OptionGroupAdminSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "selection_type",
+            "selection_mode",
+            "display_type",
             "min_selections",
             "max_selections",
             "is_required",
             "is_active",
             "sort_order",
+            "icon",
+            "image_url",
+            "visibility",
+            "pricing_config",
+            "ui_config",
+            "default_option_ids",
             "options",
             "options_count",
         ]
@@ -216,4 +251,28 @@ class OptionGroupAdminSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["id"] = str(instance.id)
+        data["image_url"] = absolutize_media_url(instance.image_url, self.context.get("request"))
+        if not data.get("pricing_config"):
+            data["pricing_config"] = {"strategy": "additive"}
         return data
+
+
+class ProductOptionGroupReadSerializer(serializers.ModelSerializer):
+    option_group_id = serializers.UUIDField(read_only=True)
+    group = OptionGroupAdminSerializer(source="option_group", read_only=True)
+
+    class Meta:
+        model = ProductOptionGroup
+        fields = [
+            "id",
+            "option_group_id",
+            "sort_order",
+            "override_min",
+            "override_max",
+            "override_required",
+            "override_display_type",
+            "override_pricing_config",
+            "override_ui_config",
+            "group",
+        ]
+        read_only_fields = fields

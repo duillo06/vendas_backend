@@ -19,6 +19,7 @@ class CheckoutAddressSerializer(serializers.Serializer):
 
 class CheckoutItemOptionSerializer(serializers.Serializer):
     option_id = serializers.UUIDField()
+    quantity = serializers.IntegerField(min_value=1, max_value=99, required=False, default=1)
 
 
 class CheckoutItemSerializer(serializers.Serializer):
@@ -107,6 +108,7 @@ class OrderItemPublicSerializer(serializers.Serializer):
                 "option_group_name": opt.option_group_name,
                 "option_name": opt.option_name,
                 "price_modifier": float(opt.price_modifier),
+                "quantity": opt.quantity,
             }
             for opt in obj.options.all()
         ]

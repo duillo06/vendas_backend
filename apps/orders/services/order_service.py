@@ -19,6 +19,7 @@ from apps.orders.domain.enums import (
 from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError
 from apps.orders.models import Order, OrderItem, OrderItemOption, OrderPayment, OrderStatusHistory
 from apps.orders.services.cart_validation_service import CartValidationService
+from apps.catalog.services.option_stock_service import OptionStockService
 from core.utils.money import round_money
 
 
@@ -128,8 +129,11 @@ class OrderService:
                     option_group_name=opt["group_name"],
                     option_name=opt["name"],
                     price_modifier=opt["price_modifier"],
+                    quantity=opt.get("quantity", 1),
                     option_id=opt.get("option_id"),
                 )
+
+        OptionStockService.decrement_for_order(validated_items=validated_items)
 
         OrderPayment.objects.create(
             tenant=tenant,

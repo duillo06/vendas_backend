@@ -100,10 +100,16 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = ProductAdminDetailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product = ProductService.create(tenant=self.get_tenant(), data=serializer.validated_data)
-        product = Product.all_objects.prefetch_related("images", "product_option_groups").get(
+        product = Product.all_objects.prefetch_related(
+            "images",
+            "product_option_groups__option_group__options",
+        ).get(
             id=product.id,
         )
-        return Response(ProductAdminDetailSerializer(product).data, status=status.HTTP_201_CREATED)
+        return Response(
+            ProductAdminDetailSerializer(product, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def retrieve(self, request, pk=None):
         if not HasPermission("catalog.view").has_permission(request, self):
@@ -111,9 +117,9 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
 
         product = Product.all_objects.prefetch_related(
             "images",
-            "product_option_groups",
+            "product_option_groups__option_group__options",
         ).get(pk=pk, tenant=self.get_tenant(), deleted_at__isnull=True)
-        return Response(ProductAdminDetailSerializer(product).data)
+        return Response(ProductAdminDetailSerializer(product, context={"request": request}).data)
 
     def partial_update(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):
@@ -123,10 +129,13 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = ProductAdminDetailSerializer(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         product = ProductService.update(product=product, data=serializer.validated_data)
-        product = Product.all_objects.prefetch_related("images", "product_option_groups").get(
+        product = Product.all_objects.prefetch_related(
+            "images",
+            "product_option_groups__option_group__options",
+        ).get(
             id=product.id,
         )
-        return Response(ProductAdminDetailSerializer(product).data)
+        return Response(ProductAdminDetailSerializer(product, context={"request": request}).data)
 
     def destroy(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):
@@ -196,6 +205,28 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         ProductImageService.delete_image(product=product, image_id=image_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=["patch"], url_path="option-groups/reorder")
+    def reorder_option_groups(self, request, pk=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        ids = request.data.get("ids")
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Campo ids é obrigatório"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product = Product.all_objects.get(pk=pk, tenant=self.get_tenant(), deleted_at__isnull=True)
+        try:
+            OptionGroupService.reorder_product_groups(product=product, ids=ids)
+        except ValueError as exc:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": str(exc)}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
     def list(self, request):
@@ -203,7 +234,9 @@ class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         groups = OptionGroup.objects.prefetch_related("options").order_by("sort_order", "name")
-        return Response(OptionGroupAdminSerializer(groups, many=True).data)
+        return Response(
+            OptionGroupAdminSerializer(groups, many=True, context={"request": request}).data,
+        )
 
     def create(self, request):
         if not HasPermission("catalog.manage").has_permission(request, self):
@@ -212,14 +245,17 @@ class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = OptionGroupAdminSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         group = OptionGroupService.create(tenant=self.get_tenant(), data=serializer.validated_data)
-        return Response(OptionGroupAdminSerializer(group).data, status=status.HTTP_201_CREATED)
+        return Response(
+            OptionGroupAdminSerializer(group, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def retrieve(self, request, pk=None):
         if not HasPermission("catalog.view").has_permission(request, self):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
         group = OptionGroup.objects.prefetch_related("options").get(pk=pk)
-        return Response(OptionGroupAdminSerializer(group).data)
+        return Response(OptionGroupAdminSerializer(group, context={"request": request}).data)
 
     def partial_update(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):
@@ -229,7 +265,7 @@ class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = OptionGroupAdminSerializer(group, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         group = OptionGroupService.update(group=group, data=serializer.validated_data)
-        return Response(OptionGroupAdminSerializer(group).data)
+        return Response(OptionGroupAdminSerializer(group, context={"request": request}).data)
 
     def destroy(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):
@@ -271,4 +307,77 @@ class AdminOptionGroupViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = OptionAdminSerializer(option, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         option = OptionGroupService.update_option(option=option, data=serializer.validated_data)
-        return Response(OptionAdminSerializer(option).data)
+        return Response(OptionAdminSerializer(option, context={"request": request}).data)
+
+    @action(detail=False, methods=["patch"], url_path="reorder")
+    def reorder_groups(self, request):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        ids = request.data.get("ids")
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Campo ids é obrigatório"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            OptionGroupService.reorder_groups(tenant=self.get_tenant(), ids=ids)
+        except ValueError as exc:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": str(exc)}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="duplicate")
+    def duplicate_group(self, request, pk=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        group = OptionGroup.objects.get(pk=pk, tenant=self.get_tenant())
+        new_group = OptionGroupService.duplicate_group(group=group)
+        new_group = OptionGroup.objects.prefetch_related("options").get(pk=new_group.id)
+        return Response(
+            OptionGroupAdminSerializer(new_group, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["patch"], url_path="options/reorder")
+    def reorder_options(self, request, pk=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        ids = request.data.get("ids")
+        if not isinstance(ids, list) or not ids:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Campo ids é obrigatório"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        group = OptionGroup.objects.get(pk=pk, tenant=self.get_tenant())
+        try:
+            OptionGroupService.reorder_options(group=group, ids=ids)
+        except ValueError as exc:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": str(exc)}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"options/(?P<option_id>[^/.]+)/duplicate",
+    )
+    def duplicate_option(self, request, pk=None, option_id=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        group = OptionGroup.objects.get(pk=pk, tenant=self.get_tenant())
+        option = Option.objects.get(pk=option_id, option_group=group)
+        new_option = OptionGroupService.duplicate_option(option=option)
+        return Response(
+            OptionAdminSerializer(new_option, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )

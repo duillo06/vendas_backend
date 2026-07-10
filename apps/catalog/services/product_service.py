@@ -12,6 +12,7 @@ class ProductService:
     @transaction.atomic
     def create(*, tenant, data: dict) -> Product:
         option_group_ids = data.pop("option_group_ids", None)
+        product_option_groups = data.pop("product_option_groups", None)
         slug = data.pop("slug", None) or make_unique_slug(Product, tenant.id, data["name"])
 
         product = Product.all_objects.create(
@@ -20,9 +21,11 @@ class ProductService:
             **data,
         )
 
-        if option_group_ids is not None:
-            from apps.catalog.services.option_group_service import OptionGroupService
+        from apps.catalog.services.option_group_service import OptionGroupService
 
+        if product_option_groups is not None:
+            OptionGroupService.sync_product_group_links(product, product_option_groups)
+        elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
 
         invalidate_catalog_cache(tenant.id)
@@ -32,6 +35,7 @@ class ProductService:
     @transaction.atomic
     def update(*, product: Product, data: dict) -> Product:
         option_group_ids = data.pop("option_group_ids", None)
+        product_option_groups = data.pop("product_option_groups", None)
 
         for field, value in data.items():
             setattr(product, field, value)
@@ -46,9 +50,11 @@ class ProductService:
 
         product.save()
 
-        if option_group_ids is not None:
-            from apps.catalog.services.option_group_service import OptionGroupService
+        from apps.catalog.services.option_group_service import OptionGroupService
 
+        if product_option_groups is not None:
+            OptionGroupService.sync_product_group_links(product, product_option_groups)
+        elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
 
         from apps.catalog.services.catalog_cache import invalidate_product_cache

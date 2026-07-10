@@ -2,7 +2,13 @@ from decimal import Decimal
 
 from django.db import models
 
-from apps.catalog.domain.enums import OptionPriceType, OptionSelectionType
+from apps.catalog.domain.enums import (
+    OptionDisplayType,
+    OptionGroupVisibility,
+    OptionPriceType,
+    OptionSelectionMode,
+    OptionSelectionType,
+)
 from core.models.base import SoftDeleteModel
 from core.models.tenant_model import TenantAwareModel
 from core.tenancy.managers import TenantManager, TenantQuerySet
@@ -129,11 +135,31 @@ class OptionGroup(TenantAwareModel):
         choices=OptionSelectionType.choices,
         default=OptionSelectionType.SINGLE,
     )
+    selection_mode = models.CharField(
+        max_length=20,
+        choices=OptionSelectionMode.choices,
+        default=OptionSelectionMode.PICK,
+    )
+    display_type = models.CharField(
+        max_length=20,
+        choices=OptionDisplayType.choices,
+        default=OptionDisplayType.RADIO,
+    )
     min_selections = models.PositiveIntegerField(default=0)
     max_selections = models.PositiveIntegerField(default=1)
     is_required = models.BooleanField(default=False)
     sort_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    icon = models.CharField(max_length=16, blank=True, default="")
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    visibility = models.CharField(
+        max_length=20,
+        choices=OptionGroupVisibility.choices,
+        default=OptionGroupVisibility.ALWAYS,
+    )
+    pricing_config = models.JSONField(default=dict, blank=True)
+    ui_config = models.JSONField(default=dict, blank=True)
+    default_option_ids = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = "option_groups"
@@ -164,6 +190,10 @@ class Option(TenantAwareModel):
     is_active = models.BooleanField(default=True)
     is_available = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
+    image_url = models.URLField(max_length=500, blank=True, null=True)
+    icon = models.CharField(max_length=16, blank=True, default="")
+    stock_quantity = models.PositiveIntegerField(blank=True, null=True)
+    metadata = models.JSONField(blank=True, null=True)
 
     class Meta:
         db_table = "options"
@@ -193,6 +223,15 @@ class ProductOptionGroup(TenantAwareModel):
     sort_order = models.IntegerField(default=0)
     override_min = models.PositiveIntegerField(blank=True, null=True)
     override_max = models.PositiveIntegerField(blank=True, null=True)
+    override_required = models.BooleanField(blank=True, null=True)
+    override_display_type = models.CharField(
+        max_length=20,
+        choices=OptionDisplayType.choices,
+        blank=True,
+        null=True,
+    )
+    override_pricing_config = models.JSONField(blank=True, null=True)
+    override_ui_config = models.JSONField(blank=True, null=True)
 
     class Meta:
         db_table = "product_option_groups"
