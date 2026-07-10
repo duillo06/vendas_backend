@@ -19,6 +19,7 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "slug",
+            "emoji",
             "description",
             "image_url",
             "parent_id",
@@ -27,6 +28,12 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             "product_count",
         ]
         read_only_fields = ["id", "product_count", "slug"]
+
+    def validate_emoji(self, value):
+        emoji = (value or "").strip()
+        if len(emoji) > 8:
+            raise serializers.ValidationError("Use apenas um emoji.")
+        return emoji
 
     def get_product_count(self, obj):
         return obj.products.filter(deleted_at__isnull=True).count()

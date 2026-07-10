@@ -11,14 +11,14 @@ class CustomerAddressService:
             CustomerAddress.objects.filter(customer=customer).order_by("-is_default", "-created_at"),
         )
 
-    @staticmethod
-    @transaction.atomic
+    @staticmethod # indica que o método é estático, ou seja, não precisa de uma instância da classe para ser chamado
+    @transaction.atomic # indica que a transação será atômica, ou salva como um todo, ou não é salva nada
     def create(*, tenant: Company, customer: Customer, data: dict) -> CustomerAddress:
-        is_default = data.get("is_default", False)
-        has_addresses = CustomerAddress.objects.filter(customer=customer).exists()
+        is_default = data.get("is_default", False) # indica que o is_default será False se não for informado
+        has_addresses = CustomerAddress.objects.filter(customer=customer).exists() # indica que existe algum endereço para o cliente
 
         if has_addresses and is_default:
-            CustomerAddress.objects.filter(customer=customer, is_default=True).update(is_default=False)
+            CustomerAddress.objects.filter(customer=customer, is_default=True).update(is_default=False) # indica que vamos atualizar o is_default para False para todos os endereços do cliente que são default
         elif not has_addresses:
             is_default = True
 

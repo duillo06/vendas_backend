@@ -4,7 +4,7 @@ from rest_framework.response import Response
 
 from apps.accounts.authentication import EmployeeJWTAuthentication
 from apps.accounts.permissions import IsEmployeeAuthenticated
-from apps.catalog.models import Category, Option, OptionGroup, Product
+from apps.catalog.models import Category, Option, OptionGroup, Product, ProductImage
 from apps.catalog.selectors.catalog_selector import ProductImageService
 from apps.catalog.serializers.admin_serializers import (
     CategoryAdminSerializer,
@@ -163,6 +163,29 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
             )
 
         return Response(ProductImageSerializer(image).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch"], url_path=r"images/(?P<image_id>[^/.]+)")
+    def update_image(self, request, pk=None, image_id=None):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        product = Product.all_objects.get(pk=pk, tenant=self.get_tenant(), deleted_at__isnull=True)
+        is_primary = request.data.get("is_primary")
+        if str(is_primary).lower() not in {"true", "1"}:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Apenas is_primary=true é suportado"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            image = ProductImageService.set_primary_image(product=product, image_id=image_id)
+        except ProductImage.DoesNotExist:
+            return Response(
+                {"error": {"code": "NOT_FOUND", "message": "Imagem não encontrada"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(ProductImageSerializer(image).data)
 
     @action(detail=True, methods=["delete"], url_path=r"images/(?P<image_id>[^/.]+)")
     def delete_image(self, request, pk=None, image_id=None):

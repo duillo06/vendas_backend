@@ -4,7 +4,7 @@ from apps.customers.models import Customer, CustomerAddress
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    full_name = serializers.CharField(read_only=True)
+    full_name = serializers.CharField(read_only=True) # o readonly indica que esse campo será apenas enviado para o cliente, não para o backend
     has_account = serializers.BooleanField(read_only=True)
 
     class Meta:
@@ -50,8 +50,8 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def to_representation(self, instance):
-        data = super().to_representation(instance)
-        data["id"] = str(instance.id)
+        data = super().to_representation(instance) # to_representation indica que vamos enviar todo o objeto que foi retornado pelo model
+        data["id"] = str(instance.id) # aqui estamos convertendo o id para string, pois o id é um objeto UUID e o cliente precisa de um string
         return data
 
 

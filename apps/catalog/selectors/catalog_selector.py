@@ -124,7 +124,24 @@ class ProductImageService:
         return image
 
     @staticmethod
+    def set_primary_image(*, product: Product, image_id) -> ProductImage:
+        image = product.images.get(id=image_id)
+        product.images.update(is_primary=False)
+        image.is_primary = True
+        image.save(update_fields=["is_primary", "updated_at"])
+        invalidate_product_cache(product.tenant_id, product.slug)
+        return image
+
+    @staticmethod
     def delete_image(*, product: Product, image_id) -> None:
         image = product.images.get(id=image_id)
+        was_primary = image.is_primary
         image.delete()
+
+        if was_primary:
+            next_image = product.images.order_by("sort_order", "created_at").first()
+            if next_image:
+                next_image.is_primary = True
+                next_image.save(update_fields=["is_primary", "updated_at"])
+
         invalidate_product_cache(product.tenant_id, product.slug)

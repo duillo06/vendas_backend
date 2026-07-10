@@ -72,8 +72,8 @@ urlpatterns = [
     ),
     path(
         "products/<uuid:pk>/images/<uuid:image_id>/",
-        AdminProductViewSet.as_view({"delete": "delete_image"}),
-        name="admin-product-image-delete",
+        AdminProductViewSet.as_view({"patch": "update_image", "delete": "delete_image"}),
+        name="admin-product-image-detail",
     ),
     path(
         "option-groups/",
