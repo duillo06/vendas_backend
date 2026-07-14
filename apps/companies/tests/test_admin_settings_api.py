@@ -150,4 +150,7 @@ def test_admin_dashboard_with_orders(api_client, demo_admin):
     assert body["today"]["pending_orders"] == 1
     assert body["today"]["completed_orders"] == 1
     assert body["today"]["revenue"] == 50.0
+    assert "yesterday" in body
+    assert "total_orders" in body["yesterday"]
+    assert "revenue" in body["yesterday"]
     assert len(body["recent_orders"]) == 2

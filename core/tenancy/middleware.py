@@ -33,6 +33,13 @@ class TenantMiddleware:
         if tenant_id:
             return self._get_active_company(id=tenant_id)
 
+        # Vite proxy / LAN: Host vira 127.0.0.1 — tenant vem do header
+        tenant_subdomain = request.headers.get("X-Tenant-Subdomain")
+        if tenant_subdomain:
+            subdomain = tenant_subdomain.strip().lower()
+            if subdomain and subdomain not in ("www", "api", "admin", "app"):
+                return self._get_active_company(subdomain=subdomain)
+
         host = request.get_host().split(":")[0]
         if host.endswith(".foodservice.app"):
             subdomain = host.replace(".foodservice.app", "")

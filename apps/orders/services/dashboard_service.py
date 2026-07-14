@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import zoneinfo
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
@@ -26,16 +26,14 @@ class DashboardService:
         return start, end
 
     @staticmethod
-    def get_dashboard(company: Company) -> dict:
-        today = DashboardService._tenant_today(company)
-        start, end = DashboardService._day_bounds(company, today)
-
+    def _day_summary(company: Company, day) -> dict:
+        # agregado do dia no fuso da loja
+        start, end = DashboardService._day_bounds(company, day)
         qs = Order.all_objects.filter(
             tenant=company,
             created_at__gte=start,
             created_at__lte=end,
         )
-
         counts = qs.aggregate(
             total_orders=Count("id"),
             pending_orders=Count("id", filter=Q(status=OrderStatus.PENDING)),
@@ -44,14 +42,36 @@ class DashboardService:
             cancelled_orders=Count("id", filter=Q(status=OrderStatus.CANCELLED)),
             revenue=Sum("total", filter=Q(status=OrderStatus.COMPLETED)),
         )
-
         total_orders = counts["total_orders"] or 0
         revenue = counts["revenue"] or Decimal("0")
         completed_orders = counts["completed_orders"] or 0
         average_ticket = float(revenue / completed_orders) if completed_orders else 0.0
+        return {
+            "date": day.isoformat(),
+            "total_orders": total_orders,
+            "pending_orders": counts["pending_orders"] or 0,
+            "preparing_orders": counts["preparing_orders"] or 0,
+            "completed_orders": completed_orders,
+            "cancelled_orders": counts["cancelled_orders"] or 0,
+            "revenue": float(revenue),
+            "average_ticket": round(average_ticket, 2),
+        }
 
+    @staticmethod
+    def get_dashboard(company: Company) -> dict:
+        today = DashboardService._tenant_today(company)
+        yesterday = today - timedelta(days=1)
+        today_summary = DashboardService._day_summary(company, today)
+        yesterday_summary = DashboardService._day_summary(company, yesterday)
+
+        start, end = DashboardService._day_bounds(company, today)
         recent_orders = (
-            qs.select_related("customer")
+            Order.all_objects.filter(
+                tenant=company,
+                created_at__gte=start,
+                created_at__lte=end,
+            )
+            .select_related("customer")
             .order_by("-created_at")[:5]
             .values(
                 "id",
@@ -64,15 +84,11 @@ class DashboardService:
         )
 
         return {
-            "today": {
-                "date": today.isoformat(),
-                "total_orders": total_orders,
-                "pending_orders": counts["pending_orders"] or 0,
-                "preparing_orders": counts["preparing_orders"] or 0,
-                "completed_orders": completed_orders,
-                "cancelled_orders": counts["cancelled_orders"] or 0,
-                "revenue": float(revenue),
-                "average_ticket": round(average_ticket, 2),
+            "today": today_summary,
+            "yesterday": {
+                "date": yesterday_summary["date"],
+                "total_orders": yesterday_summary["total_orders"],
+                "revenue": yesterday_summary["revenue"],
             },
             "recent_orders": [
                 {

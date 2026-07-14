@@ -37,6 +37,22 @@ def test_middleware_resolves_localhost_subdomain(demo_company):
 
 
 @pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_middleware_resolves_tenant_subdomain_header(demo_company):
+    factory = RequestFactory()
+    request = factory.get(
+        "/api/v1/public/catalog/",
+        HTTP_HOST="127.0.0.1:8001",
+        HTTP_X_TENANT_SUBDOMAIN="demo",
+    )
+
+    middleware = TenantMiddleware(lambda req: req)
+    middleware(request)
+
+    assert request.tenant == demo_company
+
+
+@pytest.mark.django_db
 def test_middleware_skips_health_check():
     factory = RequestFactory()
     request = factory.get("/api/v1/health/", HTTP_HOST="demo.foodservice.app")
