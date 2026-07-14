@@ -42,6 +42,7 @@ class CompanyAdminService:
             "phone": company.phone,
             "description": company.description,
             "logo_url": absolutize_media_url(company.logo_url),
+            "cover_url": absolutize_media_url(company.cover_url),
         }
 
     @staticmethod

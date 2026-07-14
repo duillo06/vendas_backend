@@ -50,7 +50,7 @@ class ProductService:
                 "source_category_id": category_id,
                 "source_tag": data.get("source_tag") or "",
                 "label": data.get("label") or "Escolher outro sabor",
-                "min_parts": data.get("min_parts", 2),
+                "min_parts": data.get("min_parts", 1),
                 "max_parts": data.get("max_parts", 2),
                 "pricing_rule": data.get("pricing_rule", "highest"),
             },

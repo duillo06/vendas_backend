@@ -88,8 +88,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-# Base absoluta pra URLs de imagem no JSON (Vite não serve /media/)
-MEDIA_PUBLIC_BASE_URL = os.environ.get("MEDIA_PUBLIC_BASE_URL", "http://localhost:8001")
+# Path relativo /media/... (Vite/nginx proxy). Absolute só se MEDIA_USE_RELATIVE_URLS=false + MEDIA_PUBLIC_BASE_URL
+MEDIA_USE_RELATIVE_URLS = os.environ.get("MEDIA_USE_RELATIVE_URLS", "true").lower() == "true"
+MEDIA_PUBLIC_BASE_URL = os.environ.get("MEDIA_PUBLIC_BASE_URL", "")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [

@@ -70,6 +70,36 @@ class AdminLogoUploadView(APIView):
         return Response({"logo_url": absolutize_media_url(logo_url, request)})
 
 
+class AdminCoverUploadView(APIView):
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if not HasPermission("settings.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        image_file = request.FILES.get("cover") or request.FILES.get("file")
+        if image_file is None:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Arquivo de capa é obrigatório"}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        company = request.user.employee.tenant
+        try:
+            cover_url = CompanyLogoService.upload_cover(company=company, image_file=image_file)
+        except DjangoValidationError as exc:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": str(exc)}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        from core.utils.media import absolutize_media_url
+
+        return Response({"cover_url": absolutize_media_url(cover_url, request)})
+
+
 class AdminDashboardView(APIView):
     authentication_classes = [EmployeeJWTAuthentication]
     permission_classes = [IsEmployeeAuthenticated]
