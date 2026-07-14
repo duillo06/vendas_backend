@@ -71,7 +71,7 @@ class CatalogSelector:
 
         product = (
             Product.objects.filter(slug=slug, is_active=True)
-            .select_related("category")
+            .select_related("category", "composition")
             .prefetch_related(
                 "images",
                 Prefetch(

@@ -32,3 +32,17 @@ class OptionGroupVisibility(models.TextChoices):
 class OptionPriceType(models.TextChoices):
     FIXED = "fixed", "Fixo"
     PERCENTAGE = "percentage", "Percentual"
+
+
+class CompositionSourceType(models.TextChoices):
+    # de onde vêm os produtos que compõem (ex: sabores de pizza)
+    CATEGORY = "category", "Mesma categoria"
+    TAG = "tag", "Por tag"
+    CUSTOM = "custom", "Lista personalizada"
+
+
+class CompositionPricingRule(models.TextChoices):
+    # como cobrar quando o produto é composto por outros
+    HIGHEST = "highest", "Maior preço"
+    AVERAGE = "average", "Média dos preços"
+    MAIN = "main", "Preço do produto principal"

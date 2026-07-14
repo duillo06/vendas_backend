@@ -60,3 +60,25 @@ class PublicProductDetailView(PublicCatalogMixin, APIView):
         return Response(
             ProductDetailPublicSerializer(product, context={"request": request}).data
         )
+
+
+class PublicProductCompositionView(PublicCatalogMixin, APIView):
+    """Lista os produtos que podem compor este produto (ex: outros sabores)."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug: str):
+        from apps.catalog.services.composition_service import CompositionService
+
+        try:
+            product = (
+                Product.objects.select_related("category", "composition")
+                .prefetch_related("composition__custom_products")
+                .get(slug=slug, is_active=True)
+            )
+        except Product.DoesNotExist:
+            raise Http404("Produto não encontrado") from None
+
+        candidates = CompositionService.get_candidates(product)
+        data = ProductListPublicSerializer(candidates, many=True, context={"request": request}).data
+        return Response(data)

@@ -2,7 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.catalog.domain.exceptions import CategoryHasActiveProducts
-from apps.catalog.models import Category, Product
+from apps.catalog.models import Category, Product, ProductComposition
 from apps.catalog.services.catalog_cache import invalidate_catalog_cache
 from core.utils.slug import make_unique_slug
 
@@ -13,6 +13,7 @@ class ProductService:
     def create(*, tenant, data: dict) -> Product:
         option_group_ids = data.pop("option_group_ids", None)
         product_option_groups = data.pop("product_option_groups", None)
+        composition = data.pop("composition", None)
         slug = data.pop("slug", None) or make_unique_slug(Product, tenant.id, data["name"])
 
         product = Product.all_objects.create(
@@ -28,14 +29,45 @@ class ProductService:
         elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
 
+        if composition is not None:
+            ProductService._sync_composition(product, composition)
+
         invalidate_catalog_cache(tenant.id)
         return product
+
+    @staticmethod
+    def _sync_composition(product: Product, data: dict) -> None:
+        """Cria/atualiza a config de composição do produto."""
+        custom_ids = data.get("custom_product_ids") or []
+        category_id = data.get("source_category_id")
+
+        config, _ = ProductComposition.all_objects.update_or_create(
+            product=product,
+            defaults={
+                "tenant": product.tenant,
+                "is_enabled": data.get("enabled", False),
+                "source_type": data.get("source_type", "category"),
+                "source_category_id": category_id,
+                "source_tag": data.get("source_tag") or "",
+                "label": data.get("label") or "Escolher outro sabor",
+                "min_parts": data.get("min_parts", 2),
+                "max_parts": data.get("max_parts", 2),
+                "pricing_rule": data.get("pricing_rule", "highest"),
+            },
+        )
+
+        if data.get("source_type") == "custom":
+            valid = Product.objects.filter(id__in=custom_ids).values_list("id", flat=True)
+            config.custom_products.set(list(valid))
+        else:
+            config.custom_products.clear()
 
     @staticmethod
     @transaction.atomic
     def update(*, product: Product, data: dict) -> Product:
         option_group_ids = data.pop("option_group_ids", None)
         product_option_groups = data.pop("product_option_groups", None)
+        composition = data.pop("composition", None)
 
         for field, value in data.items():
             setattr(product, field, value)
@@ -56,6 +88,9 @@ class ProductService:
             OptionGroupService.sync_product_group_links(product, product_option_groups)
         elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
+
+        if composition is not None:
+            ProductService._sync_composition(product, composition)
 
         from apps.catalog.services.catalog_cache import invalidate_product_cache
 

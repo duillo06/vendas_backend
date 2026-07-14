@@ -164,6 +164,7 @@ class OptionGroupPublicSerializer(serializers.Serializer):
 class ProductDetailPublicSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     option_groups = serializers.SerializerMethodField()
+    composition = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -179,6 +180,7 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
             "tags",
             "images",
             "option_groups",
+            "composition",
         ]
 
     def get_images(self, obj):
@@ -197,6 +199,18 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         links = obj.product_option_groups.all()
         groups = OptionGroupPublicSerializer(links, many=True, context=self.context).data
         return [group for group in groups if group is not None]
+
+    def get_composition(self, obj):
+        config = getattr(obj, "composition", None)
+        if config is None or not config.is_enabled:
+            return None
+        return {
+            "enabled": True,
+            "label": config.label or "Escolher outro sabor",
+            "min_parts": config.min_parts,
+            "max_parts": config.max_parts,
+            "pricing_rule": config.pricing_rule,
+        }
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

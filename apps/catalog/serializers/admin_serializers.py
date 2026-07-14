@@ -105,6 +105,35 @@ class ProductAdminListSerializer(serializers.ModelSerializer):
         return data
 
 
+class ProductCompositionWriteSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField(required=False, default=False)
+    source_type = serializers.ChoiceField(
+        choices=["category", "tag", "custom"],
+        required=False,
+        default="category",
+    )
+    source_category_id = serializers.UUIDField(required=False, allow_null=True)
+    source_tag = serializers.CharField(required=False, allow_blank=True, default="")
+    custom_product_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+    )
+    label = serializers.CharField(required=False, allow_blank=True, max_length=80, default="")
+    min_parts = serializers.IntegerField(required=False, min_value=1, default=2)
+    max_parts = serializers.IntegerField(required=False, min_value=1, default=2)
+    pricing_rule = serializers.ChoiceField(
+        choices=["highest", "average", "main"],
+        required=False,
+        default="highest",
+    )
+
+    def validate(self, attrs):
+        if attrs.get("max_parts", 2) < attrs.get("min_parts", 2):
+            raise serializers.ValidationError("max_parts deve ser >= min_parts")
+        return attrs
+
+
 class ProductOptionGroupWriteSerializer(serializers.Serializer):
     option_group_id = serializers.UUIDField()
     sort_order = serializers.IntegerField(required=False, default=0)
@@ -126,6 +155,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         required=False,
     )
     product_option_groups = ProductOptionGroupWriteSerializer(many=True, required=False, write_only=True)
+    composition = ProductCompositionWriteSerializer(required=False, write_only=True)
 
     class Meta:
         model = Product
@@ -148,6 +178,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "images",
             "option_group_ids",
             "product_option_groups",
+            "composition",
             "created_at",
             "updated_at",
         ]
@@ -186,6 +217,23 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         data["option_group_ids"] = [
             str(link.option_group_id) for link in instance.product_option_groups.all()
         ]
+        config = getattr(instance, "composition", None)
+        if config is not None:
+            data["composition"] = {
+                "enabled": config.is_enabled,
+                "source_type": config.source_type,
+                "source_category_id": str(config.source_category_id)
+                if config.source_category_id
+                else None,
+                "source_tag": config.source_tag or "",
+                "custom_product_ids": [str(p.id) for p in config.custom_products.all()],
+                "label": config.label or "",
+                "min_parts": config.min_parts,
+                "max_parts": config.max_parts,
+                "pricing_rule": config.pricing_rule,
+            }
+        else:
+            data["composition"] = None
         return data
 
 

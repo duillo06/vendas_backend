@@ -126,6 +126,38 @@ class OrderItemOption(TenantAwareModel):
         ]
 
 
+class OrderItemComponent(TenantAwareModel):
+    """Snapshot dos produtos que compõem um item (ex: 2º sabor da pizza)."""
+
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.CASCADE,
+        related_name="components",
+        db_column="order_item_id",
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="order_item_components",
+        db_column="product_id",
+    )
+    product_name = models.CharField(max_length=200)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "order_item_components"
+        ordering = ["sort_order"]
+        indexes = [
+            models.Index(fields=["order_item"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.product_name
+
+
 class OrderStatusHistory(TenantAwareModel):
     order = models.ForeignKey(
         Order,

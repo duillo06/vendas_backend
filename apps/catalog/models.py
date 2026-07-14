@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.db import models
 
 from apps.catalog.domain.enums import (
+    CompositionPricingRule,
+    CompositionSourceType,
     OptionDisplayType,
     OptionGroupVisibility,
     OptionPriceType,
@@ -245,3 +247,58 @@ class ProductOptionGroup(TenantAwareModel):
         indexes = [
             models.Index(fields=["product", "sort_order"]),
         ]
+
+
+class ProductComposition(TenantAwareModel):
+    """Config genérica: um produto pode ser composto por OUTROS produtos.
+
+    Ex: pizza meio a meio — o cliente escolhe outro produto (sabor) da mesma
+    categoria pra compor. Não é grupo de opções: são produtos de verdade.
+    """
+
+    product = models.OneToOneField(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="composition",
+        db_column="product_id",
+    )
+    is_enabled = models.BooleanField(default=False)
+    source_type = models.CharField(
+        max_length=20,
+        choices=CompositionSourceType.choices,
+        default=CompositionSourceType.CATEGORY,
+    )
+    # usado quando source_type=category; vazio = usa a categoria do próprio produto
+    source_category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="composition_sources",
+        db_column="source_category_id",
+    )
+    source_tag = models.CharField(max_length=50, blank=True, default="")
+    # lista personalizada (source_type=custom)
+    custom_products = models.ManyToManyField(
+        Product,
+        related_name="composition_memberships",
+        blank=True,
+    )
+    label = models.CharField(max_length=80, blank=True, default="Escolher outro sabor")
+    # total de partes contando o produto principal (o cliente escolhe partes - 1)
+    min_parts = models.PositiveIntegerField(default=2)
+    max_parts = models.PositiveIntegerField(default=2)
+    pricing_rule = models.CharField(
+        max_length=20,
+        choices=CompositionPricingRule.choices,
+        default=CompositionPricingRule.HIGHEST,
+    )
+
+    class Meta:
+        db_table = "product_compositions"
+        indexes = [
+            models.Index(fields=["tenant", "is_enabled"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Composição de {self.product.name}"

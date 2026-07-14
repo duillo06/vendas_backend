@@ -100,9 +100,10 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = ProductAdminDetailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         product = ProductService.create(tenant=self.get_tenant(), data=serializer.validated_data)
-        product = Product.all_objects.prefetch_related(
+        product = Product.all_objects.select_related("composition").prefetch_related(
             "images",
             "product_option_groups__option_group__options",
+            "composition__custom_products",
         ).get(
             id=product.id,
         )
@@ -115,9 +116,10 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         if not HasPermission("catalog.view").has_permission(request, self):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
-        product = Product.all_objects.prefetch_related(
+        product = Product.all_objects.select_related("composition").prefetch_related(
             "images",
             "product_option_groups__option_group__options",
+            "composition__custom_products",
         ).get(pk=pk, tenant=self.get_tenant(), deleted_at__isnull=True)
         return Response(ProductAdminDetailSerializer(product, context={"request": request}).data)
 
@@ -129,9 +131,10 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         serializer = ProductAdminDetailSerializer(product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         product = ProductService.update(product=product, data=serializer.validated_data)
-        product = Product.all_objects.prefetch_related(
+        product = Product.all_objects.select_related("composition").prefetch_related(
             "images",
             "product_option_groups__option_group__options",
+            "composition__custom_products",
         ).get(
             id=product.id,
         )
