@@ -45,4 +45,5 @@ class CompositionPricingRule(models.TextChoices):
     # como cobrar quando o produto é composto por outros
     HIGHEST = "highest", "Maior preço"
     AVERAGE = "average", "Média dos preços"
+    SUM = "sum", "Soma dos preços"
     MAIN = "main", "Preço do produto principal"

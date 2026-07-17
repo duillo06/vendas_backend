@@ -89,5 +89,7 @@ class CompositionService:
             return round_money(base)
         if config.pricing_rule == CompositionPricingRule.AVERAGE:
             return round_money(sum(prices) / Decimal(len(prices)))
+        if config.pricing_rule == CompositionPricingRule.SUM:
+            return round_money(sum(prices))
         # highest (padrão pizza meio a meio: cobra o mais caro)
         return round_money(max(prices))

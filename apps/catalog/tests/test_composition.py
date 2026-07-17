@@ -159,3 +159,6 @@ def test_composed_base_price_rules(pizza_setup):
 
     calabresa.composition.pricing_rule = "main"
     assert CompositionService.composed_base_price(calabresa, parts) == Decimal("40.00")
+
+    calabresa.composition.pricing_rule = "sum"
+    assert CompositionService.composed_base_price(calabresa, parts) == Decimal("90.00")

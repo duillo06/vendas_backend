@@ -123,7 +123,7 @@ class ProductCompositionWriteSerializer(serializers.Serializer):
     min_parts = serializers.IntegerField(required=False, min_value=1, default=2)
     max_parts = serializers.IntegerField(required=False, min_value=1, default=2)
     pricing_rule = serializers.ChoiceField(
-        choices=["highest", "average", "main"],
+        choices=["highest", "average", "sum", "main"],
         required=False,
         default="highest",
     )
