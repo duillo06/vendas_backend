@@ -7,6 +7,8 @@ alwaysApply: true
 
 SaaS multi-tenant genérico. Documentação: `../vendas_frontend/docs/`. Skills: `../vendas_frontend/.cursor/skills/`.
 
+**Filosofia:** `docs/00-product-philosophy.md` — comerciante responde perguntas; jargão técnico nunca na UI. Autoria: `docs/17-modelo-categoria-produto.md`.
+
 ## Código
 
 - Comentários curtos, português informal — nota sua no código, não texto de IA

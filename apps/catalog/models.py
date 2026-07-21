@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.db import models
 
 from apps.catalog.domain.enums import (
+    CatalogKind,
     CompositionPricingRule,
     CompositionSourceType,
     OptionDisplayType,
@@ -42,6 +43,8 @@ class Category(TenantAwareModel, SoftDeleteModel):
     image_url = models.URLField(max_length=500, blank=True, null=True)
     sort_order = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
+    # receita: atalho do assistente (pizza, burger…) — interno
+    template_key = models.CharField(max_length=40, blank=True, default="")
 
     objects = SoftDeleteTenantManager()
     all_objects = models.Manager()
@@ -162,12 +165,20 @@ class OptionGroup(TenantAwareModel):
     pricing_config = models.JSONField(default=dict, blank=True)
     ui_config = models.JSONField(default=dict, blank=True)
     default_option_ids = models.JSONField(default=list, blank=True)
+    # base reutilizável: size/crust/… — vazio = ainda não classificado
+    kind = models.CharField(
+        max_length=20,
+        choices=CatalogKind.choices,
+        blank=True,
+        default="",
+    )
 
     class Meta:
         db_table = "option_groups"
         ordering = ["sort_order", "name"]
         indexes = [
             models.Index(fields=["tenant", "is_active"]),
+            models.Index(fields=["tenant", "kind"]),
         ]
 
     def __str__(self) -> str:
@@ -302,3 +313,174 @@ class ProductComposition(TenantAwareModel):
 
     def __str__(self) -> str:
         return f"Composição de {self.product.name}"
+
+
+# --- Receita da categoria + preços no produto (Fase 0) ---
+
+
+class CategoryCapability(TenantAwareModel):
+    """Resposta interna a “essa categoria possui X?”."""
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="capabilities",
+        db_column="category_id",
+    )
+    kind = models.CharField(max_length=20, choices=CatalogKind.choices)
+    enabled = models.BooleanField(default=True)
+    is_required = models.BooleanField(default=False)
+    sort_order = models.IntegerField(default=0)
+    # só o mínimo que não cabe em tabela (ex. meio a meio)
+    settings = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        db_table = "category_capabilities"
+        ordering = ["sort_order", "kind"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "kind"],
+                name="uniq_category_capability_kind",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["category", "sort_order"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name}:{self.kind}"
+
+
+class CategoryLibrary(TenantAwareModel):
+    """Qual conjunto da base reutilizável a receita usa."""
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="libraries",
+        db_column="category_id",
+    )
+    option_group = models.ForeignKey(
+        OptionGroup,
+        on_delete=models.CASCADE,
+        related_name="category_libraries",
+        db_column="option_group_id",
+    )
+    kind = models.CharField(max_length=20, choices=CatalogKind.choices)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "category_libraries"
+        ordering = ["sort_order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "option_group"],
+                name="uniq_category_library_group",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["category", "kind"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name} → {self.option_group.name}"
+
+
+class CategoryLibraryItem(TenantAwareModel):
+    """Quais itens daquele conjunto entram na receita."""
+
+    category_library = models.ForeignKey(
+        CategoryLibrary,
+        on_delete=models.CASCADE,
+        related_name="items",
+        db_column="category_library_id",
+    )
+    option = models.ForeignKey(
+        Option,
+        on_delete=models.CASCADE,
+        related_name="category_library_items",
+        db_column="option_id",
+    )
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "category_library_items"
+        ordering = ["sort_order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category_library", "option"],
+                name="uniq_category_library_option",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.option.name
+
+
+class ProductOptionPrice(TenantAwareModel):
+    """Preço de venda da opção neste produto (fonte da verdade nova)."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="option_prices",
+        db_column="product_id",
+    )
+    option = models.ForeignKey(
+        Option,
+        on_delete=models.CASCADE,
+        related_name="product_prices",
+        db_column="option_id",
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = "product_option_prices"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "option"],
+                name="uniq_product_option_price",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(price__gte=0),
+                name="product_option_prices_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["product"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product.name} / {self.option.name}: {self.price}"
+
+
+class ProductOptionExclusion(TenantAwareModel):
+    """Produto não usa este item da receita (exceção)."""
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="option_exclusions",
+        db_column="product_id",
+    )
+    option = models.ForeignKey(
+        Option,
+        on_delete=models.CASCADE,
+        related_name="product_exclusions",
+        db_column="option_id",
+    )
+
+    class Meta:
+        db_table = "product_option_exclusions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "option"],
+                name="uniq_product_option_exclusion",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["product"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.product.name} exclui {self.option.name}"

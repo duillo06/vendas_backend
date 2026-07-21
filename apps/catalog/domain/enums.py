@@ -47,3 +47,16 @@ class CompositionPricingRule(models.TextChoices):
     AVERAGE = "average", "Média dos preços"
     SUM = "sum", "Soma dos preços"
     MAIN = "main", "Preço do produto principal"
+
+
+# kinds da receita / base reutilizável — internos; UI fala em perguntas
+class CatalogKind(models.TextChoices):
+    SIZE = "size", "Tamanhos"
+    CRUST = "crust", "Bordas"
+    EXTRAS = "extras", "Adicionais"
+    BUILDABLE = "buildable", "Ingredientes"
+    SAUCES = "sauces", "Molhos"
+    DOUGH = "dough", "Massas"
+    VOLUME = "volume", "Volumes"
+    HALF = "half", "Meio a meio"
+    OTHER = "other", "Outro"
