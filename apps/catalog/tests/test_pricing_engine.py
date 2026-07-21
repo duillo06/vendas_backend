@@ -153,3 +153,18 @@ def test_pricing_engine_first_n_free():
         pricing_config={"strategy": "first_n_free", "free_count": 1},
     )
     assert total == Decimal("5.00")
+
+
+def test_pricing_engine_product_price_override_wins():
+    """preço no produto ganha do price_modifier legado"""
+    base = Decimal("40")
+    option = Option(price_modifier=Decimal("8"), price_type=OptionPriceType.FIXED)
+    option.pk = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    total = PricingEngine.apply_group(
+        base_price=base,
+        entries=[(option, 1)],
+        pricing_config={"strategy": "additive"},
+        price_overrides={str(option.pk): Decimal("12")},
+    )
+    assert total == Decimal("12.00")

@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from apps.catalog.domain.selection_types import SelectedOptionEntry
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductOptionPrice
 from apps.catalog.services.group_config import effective_group_fields
 from apps.catalog.services.pricing_engine import PricingEngine
 from apps.catalog.services.selection_validator import SelectionValidator
@@ -22,7 +22,11 @@ class PriceCalculator:
 
         base_price = Decimal(product.base_price)
         by_group: dict[str, list[tuple]] = {}
-        link_by_group: dict[str, ProductOptionGroup] = {}
+        link_by_group: dict = {}
+        # dual-read: preço no produto se existir
+        price_overrides = PricingEngine.overrides_from_rows(
+            ProductOptionPrice.objects.filter(product=product)
+        )
 
         for entry in selected:
             group_id = str(entry.group.id)
@@ -37,6 +41,7 @@ class PriceCalculator:
                 base_price=base_price,
                 entries=group_entries,
                 pricing_config=effective["pricing_config"],
+                price_overrides=price_overrides,
             )
 
         total = round_money(base_price + options_total)
