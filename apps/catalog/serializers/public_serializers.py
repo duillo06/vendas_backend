@@ -5,6 +5,7 @@ from apps.catalog.models import (
     Option,
     Product,
     ProductOptionGroup,
+    ProductOptionPrice,
 )
 from apps.catalog.services.group_config import effective_group_fields
 from core.utils.media import absolutize_media_url
@@ -111,11 +112,18 @@ class OptionPublicSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         request = self.context.get("request")
         in_stock = instance.stock_quantity is None or instance.stock_quantity > 0
+        # dual-read: product_option_prices ganha do price_modifier legado
+        overrides = self.context.get("price_overrides") or {}
+        oid = str(instance.id)
+        if oid in overrides:
+            price = float(overrides[oid])
+        else:
+            price = float(instance.price_modifier)
         return {
-            "id": str(instance.id),
+            "id": oid,
             "name": instance.name,
             "description": instance.description,
-            "price_modifier": float(instance.price_modifier),
+            "price_modifier": price,
             "price_type": instance.price_type,
             "is_available": instance.is_available and in_stock,
             "image_url": absolutize_media_url(instance.image_url, request),
@@ -134,11 +142,20 @@ class OptionGroupPublicSerializer(serializers.Serializer):
         if effective["visibility"] == "hidden":
             return None
 
-        options = [
-            opt
-            for opt in OptionPublicSerializer(group.options.all(), many=True, context=self.context).data
-            if opt is not None
-        ]
+        product = self.context.get("product") or link.product
+        visible = None
+        if product is not None:
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            visible = MaterializeService.visible_option_ids(product, group.id)
+
+        options = []
+        for option in group.options.all():
+            if visible is not None and str(option.id) not in visible:
+                continue
+            data = OptionPublicSerializer(option, context=self.context).data
+            if data is not None:
+                options.append(data)
 
         return {
             "id": str(group.id),
@@ -196,8 +213,18 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         ]
 
     def get_option_groups(self, obj):
+        # dual-read: preços deste produto no contexto do serializer público
+        price_overrides = {
+            str(row.option_id): float(row.price)
+            for row in ProductOptionPrice.all_objects.filter(product_id=obj.id)
+        }
+        ctx = {
+            **self.context,
+            "product": obj,
+            "price_overrides": price_overrides,
+        }
         links = obj.product_option_groups.all()
-        groups = OptionGroupPublicSerializer(links, many=True, context=self.context).data
+        groups = OptionGroupPublicSerializer(links, many=True, context=ctx).data
         return [group for group in groups if group is not None]
 
     def get_composition(self, obj):

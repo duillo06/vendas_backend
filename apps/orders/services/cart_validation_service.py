@@ -56,7 +56,7 @@ class CartValidationService:
             total_price = round_money(unit_price * Decimal(quantity))
 
             price_overrides = PricingEngine.overrides_from_rows(
-                ProductOptionPrice.objects.filter(product=product)
+                ProductOptionPrice.all_objects.filter(product=product)
             )
             option_snapshots = [
                 {

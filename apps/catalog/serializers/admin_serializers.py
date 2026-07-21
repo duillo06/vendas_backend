@@ -7,6 +7,7 @@ from apps.catalog.models import (
     Product,
     ProductImage,
     ProductOptionGroup,
+    ProductOptionPrice,
 )
 from core.utils.media import absolutize_media_url
 
@@ -156,6 +157,12 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
     )
     product_option_groups = ProductOptionGroupWriteSerializer(many=True, required=False, write_only=True)
     composition = ProductCompositionWriteSerializer(required=False, write_only=True)
+    option_prices = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        write_only=True,
+        help_text="[{option_id, price}] — preço neste produto",
+    )
 
     class Meta:
         model = Product
@@ -179,6 +186,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "option_group_ids",
             "product_option_groups",
             "composition",
+            "option_prices",
             "created_at",
             "updated_at",
         ]
@@ -234,6 +242,10 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             }
         else:
             data["composition"] = None
+        data["option_prices"] = [
+            {"option_id": str(row.option_id), "price": float(row.price)}
+            for row in ProductOptionPrice.all_objects.filter(product_id=instance.id)
+        ]
         return data
 
 

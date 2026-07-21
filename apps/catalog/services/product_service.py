@@ -14,6 +14,7 @@ class ProductService:
         option_group_ids = data.pop("option_group_ids", None)
         product_option_groups = data.pop("product_option_groups", None)
         composition = data.pop("composition", None)
+        option_prices = data.pop("option_prices", None)
         slug = data.pop("slug", None) or make_unique_slug(Product, tenant.id, data["name"])
 
         product = Product.all_objects.create(
@@ -31,6 +32,11 @@ class ProductService:
 
         if composition is not None:
             ProductService._sync_composition(product, composition)
+
+        if option_prices is not None:
+            from apps.catalog.services.product_option_price_service import ProductOptionPriceService
+
+            ProductOptionPriceService.sync(product, option_prices, replace=True)
 
         invalidate_catalog_cache(tenant.id)
         return product
@@ -68,6 +74,7 @@ class ProductService:
         option_group_ids = data.pop("option_group_ids", None)
         product_option_groups = data.pop("product_option_groups", None)
         composition = data.pop("composition", None)
+        option_prices = data.pop("option_prices", None)
 
         for field, value in data.items():
             setattr(product, field, value)
@@ -91,6 +98,11 @@ class ProductService:
 
         if composition is not None:
             ProductService._sync_composition(product, composition)
+
+        if option_prices is not None:
+            from apps.catalog.services.product_option_price_service import ProductOptionPriceService
+
+            ProductOptionPriceService.sync(product, option_prices, replace=False)
 
         from apps.catalog.services.catalog_cache import invalidate_product_cache
 

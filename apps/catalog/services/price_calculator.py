@@ -23,9 +23,9 @@ class PriceCalculator:
         base_price = Decimal(product.base_price)
         by_group: dict[str, list[tuple]] = {}
         link_by_group: dict = {}
-        # dual-read: preço no produto se existir
+        # dual-read: preço no produto se existir (all_objects — produto já resolve tenant)
         price_overrides = PricingEngine.overrides_from_rows(
-            ProductOptionPrice.objects.filter(product=product)
+            ProductOptionPrice.all_objects.filter(product=product)
         )
 
         for entry in selected:

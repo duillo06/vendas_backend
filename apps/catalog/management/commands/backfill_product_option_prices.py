@@ -28,7 +28,7 @@ class Command(BaseCommand):
         for link in links:
             options = Option.objects.filter(option_group_id=link.option_group_id, is_active=True)
             for option in options:
-                exists = ProductOptionPrice.objects.filter(
+                exists = ProductOptionPrice.all_objects.filter(
                     product_id=link.product_id,
                     option_id=option.id,
                 ).exists()
@@ -38,7 +38,7 @@ class Command(BaseCommand):
                 if dry:
                     created += 1
                     continue
-                ProductOptionPrice.objects.create(
+                ProductOptionPrice.all_objects.create(
                     tenant_id=link.product.tenant_id,
                     product_id=link.product_id,
                     option_id=option.id,
