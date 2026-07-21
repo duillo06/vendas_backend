@@ -8,11 +8,16 @@ from apps.catalog.models import Category, Option, OptionGroup, Product, ProductI
 from apps.catalog.selectors.catalog_selector import ProductImageService
 from apps.catalog.serializers.admin_serializers import (
     CategoryAdminSerializer,
+    CategoryRecipeWriteSerializer,
     OptionAdminSerializer,
     OptionGroupAdminSerializer,
     ProductAdminDetailSerializer,
     ProductAdminListSerializer,
     ProductImageSerializer,
+)
+from apps.catalog.services.category_recipe_service import (
+    CategoryRecipeError,
+    CategoryRecipeService,
 )
 from apps.catalog.services.option_group_service import OptionGroupService
 from apps.catalog.services.product_service import CategoryService, ProductService
@@ -68,6 +73,31 @@ class AdminCategoryViewSet(AdminCatalogMixin, viewsets.ViewSet):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def recipe(self, request, pk=None):
+        category = Category.objects.get(pk=pk)
+
+        if request.method == "GET":
+            if not HasPermission("catalog.view").has_permission(request, self):
+                return Response(status=status.HTTP_403_FORBIDDEN)
+            return Response(CategoryRecipeService.get(category))
+
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        serializer = CategoryRecipeWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            recipe = CategoryRecipeService.replace(
+                category,
+                data=serializer.validated_data,
+            )
+        except CategoryRecipeError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(recipe)
 
 
 class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):

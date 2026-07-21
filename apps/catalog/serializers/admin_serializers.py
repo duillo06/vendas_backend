@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.catalog.models import (
     Category,
+    CategoryCapability,
     Option,
     OptionGroup,
     Product,
@@ -48,7 +49,33 @@ class CategoryAdminSerializer(serializers.ModelSerializer):
             data["parent_id"] = str(instance.parent_id)
         else:
             data["parent_id"] = None
+        # tem receita? atalho pra UI da lista
+        data["has_recipe"] = CategoryCapability.all_objects.filter(
+            category_id=instance.id,
+            enabled=True,
+        ).exists()
         return data
+
+
+class CategoryRecipeCapabilitySerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    enabled = serializers.BooleanField(default=True)
+    is_required = serializers.BooleanField(default=False)
+    sort_order = serializers.IntegerField(required=False, default=0)
+    settings = serializers.DictField(required=False, default=dict)
+
+
+class CategoryRecipeLibrarySerializer(serializers.Serializer):
+    kind = serializers.CharField()
+    option_group_id = serializers.UUIDField()
+    sort_order = serializers.IntegerField(required=False, default=0)
+    option_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
+
+
+class CategoryRecipeWriteSerializer(serializers.Serializer):
+    capabilities = CategoryRecipeCapabilitySerializer(many=True)
+    libraries = CategoryRecipeLibrarySerializer(many=True, required=False, default=list)
+    template_key = serializers.CharField(required=False, allow_blank=True, max_length=40)
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -302,6 +329,7 @@ class OptionGroupAdminSerializer(serializers.ModelSerializer):
             "default_option_ids",
             "options",
             "options_count",
+            "kind",
         ]
         read_only_fields = ["id", "options", "options_count"]
 

@@ -52,6 +52,11 @@ urlpatterns = [
         name="admin-category-detail",
     ),
     path(
+        "categories/<uuid:pk>/recipe/",
+        AdminCategoryViewSet.as_view({"get": "recipe", "put": "recipe"}),
+        name="admin-category-recipe",
+    ),
+    path(
         "products/",
         AdminProductViewSet.as_view({"get": "list", "post": "create"}),
         name="admin-products",
