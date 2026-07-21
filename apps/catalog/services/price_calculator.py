@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from apps.catalog.domain.enums import PRODUCT_PRICE_KINDS
 from apps.catalog.domain.selection_types import SelectedOptionEntry
 from apps.catalog.models import Product
 from apps.catalog.services.group_config import effective_group_fields
@@ -21,10 +22,9 @@ class PriceCalculator:
         if selected and not isinstance(selected[0], SelectedOptionEntry):
             raise TypeError("Use SelectionValidator.validate antes de calcular preço")
 
-        base_price = Decimal(product.base_price)
+        catalog_base = Decimal(product.base_price)
         by_group: dict[str, list[tuple]] = {}
         link_by_group: dict = {}
-        # produto → categoria → legado (no engine)
         price_overrides = OptionPriceResolver.effective_overrides_for_product(product)
 
         for entry in selected:
@@ -32,18 +32,27 @@ class PriceCalculator:
             by_group.setdefault(group_id, []).append((entry.option, entry.quantity))
             link_by_group[group_id] = entry.link
 
-        options_total = Decimal("0")
+        # tamanho/volume = preço absoluto do produto; resto soma em cima
+        effective_base = catalog_base
+        addons = Decimal("0")
         for group_id, group_entries in by_group.items():
             link = link_by_group[group_id]
             effective = effective_group_fields(link)
-            options_total += PricingEngine.apply_group(
-                base_price=base_price,
+            config = effective["pricing_config"] or {}
+            strategy = config.get("strategy", "additive")
+            kind = getattr(link.option_group, "kind", "") or ""
+            amount = PricingEngine.apply_group(
+                base_price=catalog_base,
                 entries=group_entries,
-                pricing_config=effective["pricing_config"],
+                pricing_config=config,
                 price_overrides=price_overrides,
             )
+            if strategy == "replace_base" or kind in PRODUCT_PRICE_KINDS:
+                effective_base = amount
+            else:
+                addons += amount
 
-        total = round_money(base_price + options_total)
+        total = round_money(effective_base + addons)
         if total < 0:
             return Decimal("0.00")
         return total

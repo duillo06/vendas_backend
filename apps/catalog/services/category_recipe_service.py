@@ -6,7 +6,7 @@ Não rematerializa produtos existentes (prompt de aplicação = Fase 3).
 
 from django.db import transaction
 
-from apps.catalog.domain.enums import CatalogKind
+from apps.catalog.domain.enums import CatalogKind, PRODUCT_PRICE_KINDS
 from apps.catalog.models import (
     Category,
     CategoryCapability,
@@ -137,6 +137,11 @@ class CategoryRecipeService:
                 sort_order=int(raw.get("sort_order", index)),
             )
             OptionGroup.all_objects.filter(id=group_id, kind="").update(kind=kind)
+            # tamanho/volume: preço absoluto (não “+ em cima da base”)
+            if kind in PRODUCT_PRICE_KINDS:
+                OptionGroup.all_objects.filter(id=group_id).update(
+                    pricing_config={"strategy": "replace_base"}
+                )
 
             for opt_index, option_id in enumerate(raw.get("option_ids") or []):
                 CategoryLibraryItem.all_objects.create(

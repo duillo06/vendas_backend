@@ -174,6 +174,7 @@ class OptionGroupPublicSerializer(serializers.Serializer):
             "pricing_config": effective["pricing_config"],
             "ui_config": effective["ui_config"],
             "default_option_ids": effective["default_option_ids"],
+            "kind": group.kind or "",
             "options": options,
         }
 
