@@ -88,6 +88,11 @@ urlpatterns = [
         name="admin-product-option-groups-reorder",
     ),
     path(
+        "products/<uuid:pk>/copy-prices/",
+        AdminProductViewSet.as_view({"post": "copy_prices"}),
+        name="admin-product-copy-prices",
+    ),
+    path(
         "option-groups/",
         AdminOptionGroupViewSet.as_view({"get": "list", "post": "create", "patch": "reorder_groups"}),
         name="admin-option-groups",

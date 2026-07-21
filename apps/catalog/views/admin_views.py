@@ -178,6 +178,74 @@ class AdminProductViewSet(AdminCatalogMixin, viewsets.ViewSet):
         ProductService.soft_delete(product)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def copy_prices(self, request, pk=None):
+        """Copia preços de outro produto (same / percent / fixed)."""
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        from decimal import Decimal, InvalidOperation
+
+        from apps.catalog.services.product_price_copy_service import (
+            ProductPriceCopyError,
+            ProductPriceCopyService,
+        )
+
+        target = Product.all_objects.get(pk=pk, tenant=self.get_tenant(), deleted_at__isnull=True)
+        source_id = request.data.get("source_product_id")
+        if not source_id:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Informe o produto de origem"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            source = Product.all_objects.get(
+                pk=source_id,
+                tenant=self.get_tenant(),
+                deleted_at__isnull=True,
+            )
+        except Product.DoesNotExist:
+            return Response(
+                {"error": {"code": "not_found", "message": "Produto de origem não encontrado"}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        mode = request.data.get("mode") or "same"
+        percent = None
+        fixed = None
+        try:
+            if request.data.get("percent") is not None:
+                percent = Decimal(str(request.data.get("percent")))
+            if request.data.get("fixed") is not None:
+                fixed = Decimal(str(request.data.get("fixed")))
+        except (InvalidOperation, TypeError):
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Valor inválido"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            count = ProductPriceCopyService.copy(
+                target=target,
+                source=source,
+                mode=mode,
+                percent=percent,
+                fixed=fixed,
+            )
+        except ProductPriceCopyError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        target = Product.all_objects.select_related("composition").prefetch_related(
+            "images",
+            "product_option_groups__option_group__options",
+            "composition__custom_products",
+        ).get(id=target.id)
+        body = ProductAdminDetailSerializer(target, context={"request": request}).data
+        body["copied_prices"] = count
+        return Response(body)
+
     @action(detail=True, methods=["post"], url_path="images")
     def upload_image(self, request, pk=None):
         if not HasPermission("catalog.manage").has_permission(request, self):

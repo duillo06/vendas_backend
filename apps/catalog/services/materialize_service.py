@@ -1,12 +1,13 @@
 """Materializa a receita da categoria no runtime (ProductOptionGroup).
 
-Fase 0: esqueleto seguro — cria vínculos faltantes, não apaga overrides manuais.
-UI conversacional entra nas fases seguintes.
+Fase 3: chamado no create do produto e no “atualizar todos” da receita.
+UI conversacional — aqui só o vínculo técnico.
 """
 
 from django.db import transaction
 
 from apps.catalog.models import (
+    Category,
     CategoryLibrary,
     Product,
     ProductComposition,
@@ -21,11 +22,11 @@ class MaterializeService:
     def sync_product_from_category(product: Product, *, apply_composition: bool = True) -> dict:
         """Garante ProductOptionGroup a partir das libraries da categoria.
 
-        Retorna contagens pra log/admin — sem jargão pro usuário.
+        Não apaga vínculos manuais; não mexe em preços nem exclusões.
         """
         category = product.category
-        libraries = (
-            CategoryLibrary.objects.filter(category=category)
+        libraries = list(
+            CategoryLibrary.all_objects.filter(category=category)
             .select_related("option_group")
             .order_by("sort_order")
         )
@@ -33,7 +34,7 @@ class MaterializeService:
         created_links = 0
         existing = {
             str(link.option_group_id): link
-            for link in ProductOptionGroup.objects.filter(product=product)
+            for link in ProductOptionGroup.all_objects.filter(product=product)
         }
 
         for index, library in enumerate(libraries):
@@ -45,7 +46,7 @@ class MaterializeService:
                     link.save(update_fields=["sort_order", "updated_at"])
                 continue
 
-            ProductOptionGroup.objects.create(
+            ProductOptionGroup.all_objects.create(
                 tenant_id=product.tenant_id,
                 product=product,
                 option_group_id=library.option_group_id,
@@ -59,9 +60,24 @@ class MaterializeService:
 
         return {
             "created_links": created_links,
-            "libraries": libraries.count(),
+            "libraries": len(libraries),
             "composition_touched": composition_touched,
         }
+
+    @staticmethod
+    def rematerialize_category(category: Category) -> dict:
+        """Atualiza vínculos de todos os produtos da categoria (preços/exclusões ficam)."""
+        products = Product.all_objects.filter(
+            category=category,
+            deleted_at__isnull=True,
+        )
+        touched = 0
+        links = 0
+        for product in products:
+            result = MaterializeService.sync_product_from_category(product)
+            touched += 1
+            links += result["created_links"]
+        return {"products": touched, "created_links": links}
 
     @staticmethod
     def _sync_half_capability(product: Product) -> bool:
@@ -69,7 +85,7 @@ class MaterializeService:
         from apps.catalog.domain.enums import CatalogKind
         from apps.catalog.models import CategoryCapability
 
-        cap = CategoryCapability.objects.filter(
+        cap = CategoryCapability.all_objects.filter(
             category_id=product.category_id,
             kind=CatalogKind.HALF,
             enabled=True,
@@ -78,7 +94,7 @@ class MaterializeService:
             return False
 
         settings = cap.settings or {}
-        composition, created = ProductComposition.objects.get_or_create(
+        composition, created = ProductComposition.all_objects.get_or_create(
             product=product,
             defaults={
                 "tenant_id": product.tenant_id,
@@ -100,29 +116,31 @@ class MaterializeService:
 
     @staticmethod
     def visible_option_ids(product: Product, option_group_id) -> set[str] | None:
-        """None = todas as opções do grupo; set = filtrar (receita − exclusões).
-
-        Fase 0: se a categoria tem library items, usa-os; senão None (comportamento legado).
-        """
+        """None = todas as opções do grupo; set = filtrar (receita − exclusões)."""
         library = (
-            CategoryLibrary.objects.filter(
+            CategoryLibrary.all_objects.filter(
                 category_id=product.category_id,
                 option_group_id=option_group_id,
             )
-            .prefetch_related("items")
             .first()
         )
         if not library:
             return None
 
-        items = list(library.items.all())
+        from apps.catalog.models import CategoryLibraryItem
+
+        items = list(
+            CategoryLibraryItem.all_objects.filter(category_library=library).values_list(
+                "option_id", flat=True
+            )
+        )
         if not items:
             return None
 
-        allowed = {str(item.option_id) for item in items}
+        allowed = {str(oid) for oid in items}
         excluded = set(
             str(eid)
-            for eid in ProductOptionExclusion.objects.filter(product=product).values_list(
+            for eid in ProductOptionExclusion.all_objects.filter(product=product).values_list(
                 "option_id", flat=True
             )
         )

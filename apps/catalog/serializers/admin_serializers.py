@@ -76,6 +76,11 @@ class CategoryRecipeWriteSerializer(serializers.Serializer):
     capabilities = CategoryRecipeCapabilitySerializer(many=True)
     libraries = CategoryRecipeLibrarySerializer(many=True, required=False, default=list)
     template_key = serializers.CharField(required=False, allow_blank=True, max_length=40)
+    apply_mode = serializers.ChoiceField(
+        choices=["new_only", "all", "later"],
+        required=False,
+        default="new_only",
+    )
 
 
 class ProductImageSerializer(serializers.ModelSerializer):
@@ -190,6 +195,17 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="[{option_id, price}] — preço neste produto",
     )
+    option_exclusions = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        write_only=True,
+        help_text="option_ids que este produto NÃO oferece",
+    )
+    from_recipe = serializers.BooleanField(
+        required=False,
+        write_only=True,
+        help_text="Herdar vínculos da receita da categoria",
+    )
 
     class Meta:
         model = Product
@@ -214,6 +230,8 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "product_option_groups",
             "composition",
             "option_prices",
+            "option_exclusions",
+            "from_recipe",
             "created_at",
             "updated_at",
         ]
@@ -272,6 +290,14 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         data["option_prices"] = [
             {"option_id": str(row.option_id), "price": float(row.price)}
             for row in ProductOptionPrice.all_objects.filter(product_id=instance.id)
+        ]
+        from apps.catalog.models import ProductOptionExclusion
+
+        data["option_exclusions"] = [
+            str(oid)
+            for oid in ProductOptionExclusion.all_objects.filter(
+                product_id=instance.id
+            ).values_list("option_id", flat=True)
         ]
         return data
 

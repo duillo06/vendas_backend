@@ -15,6 +15,8 @@ class ProductService:
         product_option_groups = data.pop("product_option_groups", None)
         composition = data.pop("composition", None)
         option_prices = data.pop("option_prices", None)
+        option_exclusions = data.pop("option_exclusions", None)
+        from_recipe = data.pop("from_recipe", True)
         slug = data.pop("slug", None) or make_unique_slug(Product, tenant.id, data["name"])
 
         product = Product.all_objects.create(
@@ -30,6 +32,12 @@ class ProductService:
         elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
 
+        # herda a receita da categoria (vincula grupos + meio a meio)
+        if from_recipe:
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            MaterializeService.sync_product_from_category(product)
+
         if composition is not None:
             ProductService._sync_composition(product, composition)
 
@@ -37,6 +45,13 @@ class ProductService:
             from apps.catalog.services.product_option_price_service import ProductOptionPriceService
 
             ProductOptionPriceService.sync(product, option_prices, replace=True)
+
+        if option_exclusions is not None:
+            from apps.catalog.services.product_option_exclusion_service import (
+                ProductOptionExclusionService,
+            )
+
+            ProductOptionExclusionService.sync(product, option_exclusions, replace=True)
 
         invalidate_catalog_cache(tenant.id)
         return product
@@ -75,6 +90,9 @@ class ProductService:
         product_option_groups = data.pop("product_option_groups", None)
         composition = data.pop("composition", None)
         option_prices = data.pop("option_prices", None)
+        option_exclusions = data.pop("option_exclusions", None)
+        from_recipe = data.pop("from_recipe", None)
+        old_category_id = product.category_id
 
         for field, value in data.items():
             setattr(product, field, value)
@@ -96,6 +114,12 @@ class ProductService:
         elif option_group_ids is not None:
             OptionGroupService.sync_product_groups(product, option_group_ids)
 
+        category_changed = product.category_id != old_category_id
+        if from_recipe or category_changed:
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            MaterializeService.sync_product_from_category(product)
+
         if composition is not None:
             ProductService._sync_composition(product, composition)
 
@@ -103,6 +127,13 @@ class ProductService:
             from apps.catalog.services.product_option_price_service import ProductOptionPriceService
 
             ProductOptionPriceService.sync(product, option_prices, replace=False)
+
+        if option_exclusions is not None:
+            from apps.catalog.services.product_option_exclusion_service import (
+                ProductOptionExclusionService,
+            )
+
+            ProductOptionExclusionService.sync(product, option_exclusions, replace=True)
 
         from apps.catalog.services.catalog_cache import invalidate_product_cache
 

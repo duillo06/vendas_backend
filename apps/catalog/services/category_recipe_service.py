@@ -81,14 +81,19 @@ class CategoryRecipeService:
     @staticmethod
     @transaction.atomic
     def replace(category: Category, *, data: dict) -> dict:
-        """Troca a receita inteira (após resumo no assistente)."""
+        """Troca a receita inteira (após resumo no assistente).
+
+        apply_mode: new_only (padrão) | all | later
+        — all rematerializa produtos existentes (preços/exclusões ficam).
+        """
         capabilities = data.get("capabilities") or []
         libraries = data.get("libraries") or []
         template_key = data.get("template_key")
+        apply_mode = data.get("apply_mode") or "new_only"
 
         CategoryRecipeService._validate(category, capabilities, libraries)
 
-        # replace completo — produtos existentes não mudam até materializar (Fase 3)
+        # replace completo
         CategoryLibraryItem.all_objects.filter(
             category_library__category=category
         ).delete()
@@ -117,7 +122,6 @@ class CategoryRecipeService:
                 kind=kind,
                 sort_order=int(raw.get("sort_order", index)),
             )
-            # classifica o grupo na base se ainda estiver vazio
             OptionGroup.all_objects.filter(id=group_id, kind="").update(kind=kind)
 
             for opt_index, option_id in enumerate(raw.get("option_ids") or []):
@@ -132,8 +136,18 @@ class CategoryRecipeService:
             category.template_key = str(template_key)[:40]
             category.save(update_fields=["template_key", "updated_at"])
 
+        apply_result = None
+        if apply_mode == "all":
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            apply_result = MaterializeService.rematerialize_category(category)
+
         invalidate_catalog_cache(category.tenant_id)
-        return CategoryRecipeService.get(category)
+        recipe = CategoryRecipeService.get(category)
+        recipe["apply_mode"] = apply_mode
+        if apply_result is not None:
+            recipe["apply_result"] = apply_result
+        return recipe
 
     @staticmethod
     def _validate(category: Category, capabilities: list, libraries: list) -> None:
