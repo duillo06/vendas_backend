@@ -5,9 +5,9 @@ from apps.catalog.models import (
     Option,
     Product,
     ProductOptionGroup,
-    ProductOptionPrice,
 )
 from apps.catalog.services.group_config import effective_group_fields
+from apps.catalog.services.option_price_resolver import OptionPriceResolver
 from core.utils.media import absolutize_media_url
 
 
@@ -112,7 +112,7 @@ class OptionPublicSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         request = self.context.get("request")
         in_stock = instance.stock_quantity is None or instance.stock_quantity > 0
-        # dual-read: product_option_prices ganha do price_modifier legado
+        # dual-read: produto → categoria → price_modifier legado
         overrides = self.context.get("price_overrides") or {}
         oid = str(instance.id)
         if oid in overrides:
@@ -213,10 +213,10 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         ]
 
     def get_option_groups(self, obj):
-        # dual-read: preços deste produto no contexto do serializer público
+        # produto → categoria → legado (no OptionPublicSerializer)
         price_overrides = {
-            str(row.option_id): float(row.price)
-            for row in ProductOptionPrice.all_objects.filter(product_id=obj.id)
+            oid: float(price)
+            for oid, price in OptionPriceResolver.effective_overrides_for_product(obj).items()
         }
         ctx = {
             **self.context,

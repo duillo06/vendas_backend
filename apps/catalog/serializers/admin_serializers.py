@@ -72,9 +72,15 @@ class CategoryRecipeLibrarySerializer(serializers.Serializer):
     option_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
 
 
+class CategoryRecipeOptionPriceSerializer(serializers.Serializer):
+    option_id = serializers.UUIDField()
+    price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0)
+
+
 class CategoryRecipeWriteSerializer(serializers.Serializer):
     capabilities = CategoryRecipeCapabilitySerializer(many=True)
     libraries = CategoryRecipeLibrarySerializer(many=True, required=False, default=list)
+    option_prices = CategoryRecipeOptionPriceSerializer(many=True, required=False, default=list)
     template_key = serializers.CharField(required=False, allow_blank=True, max_length=40)
     apply_mode = serializers.ChoiceField(
         choices=["new_only", "all", "later"],

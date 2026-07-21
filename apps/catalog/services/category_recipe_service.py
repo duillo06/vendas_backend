@@ -12,10 +12,12 @@ from apps.catalog.models import (
     CategoryCapability,
     CategoryLibrary,
     CategoryLibraryItem,
+    CategoryOptionPrice,
     Option,
     OptionGroup,
 )
 from apps.catalog.services.catalog_cache import invalidate_catalog_cache
+from apps.catalog.services.category_option_price_service import CategoryOptionPriceService
 
 
 class CategoryRecipeError(Exception):
@@ -61,6 +63,16 @@ class CategoryRecipeService:
                 }
             )
 
+        option_prices = [
+            {
+                "option_id": str(row.option_id),
+                "price": float(row.price),
+            }
+            for row in CategoryOptionPrice.all_objects.filter(category=category).order_by(
+                "option_id"
+            )
+        ]
+
         return {
             "category_id": str(category.id),
             "category_name": category.name,
@@ -76,6 +88,7 @@ class CategoryRecipeService:
                 for cap in caps
             ],
             "libraries": library_payload,
+            "option_prices": option_prices,
         }
 
     @staticmethod
@@ -88,6 +101,7 @@ class CategoryRecipeService:
         """
         capabilities = data.get("capabilities") or []
         libraries = data.get("libraries") or []
+        option_prices = data.get("option_prices") or []
         template_key = data.get("template_key")
         apply_mode = data.get("apply_mode") or "new_only"
 
@@ -135,6 +149,9 @@ class CategoryRecipeService:
         if template_key is not None:
             category.template_key = str(template_key)[:40]
             category.save(update_fields=["template_key", "updated_at"])
+
+        # preços Tipo 2 da categoria (bordas, adicionais…)
+        CategoryOptionPriceService.sync(category, option_prices, replace=True)
 
         apply_result = None
         if apply_mode == "all":

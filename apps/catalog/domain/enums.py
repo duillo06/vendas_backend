@@ -60,3 +60,28 @@ class CatalogKind(models.TextChoices):
     VOLUME = "volume", "Volumes"
     HALF = "half", "Meio a meio"
     OTHER = "other", "Outro"
+
+
+# Tipo 1 — preço no produto (varia por item)
+PRODUCT_PRICE_KINDS = frozenset({CatalogKind.SIZE, CatalogKind.VOLUME})
+
+# Tipo 2 — preço padrão na categoria (herdado; override opcional no produto)
+CATEGORY_PRICE_KINDS = frozenset(
+    {
+        CatalogKind.CRUST,
+        CatalogKind.EXTRAS,
+        CatalogKind.BUILDABLE,
+        CatalogKind.SAUCES,
+        CatalogKind.DOUGH,
+        CatalogKind.OTHER,
+    }
+)
+
+
+def kind_price_owner(kind: str) -> str:
+    """'product' | 'category' | 'none' (ex.: half)."""
+    if kind in PRODUCT_PRICE_KINDS:
+        return "product"
+    if kind in CATEGORY_PRICE_KINDS:
+        return "category"
+    return "none"

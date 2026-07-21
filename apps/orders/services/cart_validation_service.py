@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from apps.catalog.domain.exceptions import InvalidOptionSelection
-from apps.catalog.models import Option, Product, ProductOptionPrice
+from apps.catalog.models import Option, Product
+from apps.catalog.services.option_price_resolver import OptionPriceResolver
 from apps.catalog.services.price_calculator import PriceCalculator
 from apps.catalog.services.pricing_engine import PricingEngine
 from apps.companies.models import Company
@@ -55,9 +56,7 @@ class CartValidationService:
             unit_price = PriceCalculator.calculate_item_price(product, selected_entries)
             total_price = round_money(unit_price * Decimal(quantity))
 
-            price_overrides = PricingEngine.overrides_from_rows(
-                ProductOptionPrice.all_objects.filter(product=product)
-            )
+            price_overrides = OptionPriceResolver.effective_overrides_for_product(product)
             option_snapshots = [
                 {
                     "option_id": str(entry.option.id),

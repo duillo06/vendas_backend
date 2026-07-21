@@ -418,7 +418,7 @@ class CategoryLibraryItem(TenantAwareModel):
 
 
 class ProductOptionPrice(TenantAwareModel):
-    """Preço de venda da opção neste produto (fonte da verdade nova)."""
+    """Preço no produto: tamanhos (Tipo 1) ou override de opção da categoria (Tipo 2)."""
 
     product = models.ForeignKey(
         Product,
@@ -452,6 +452,43 @@ class ProductOptionPrice(TenantAwareModel):
 
     def __str__(self) -> str:
         return f"{self.product.name} / {self.option.name}: {self.price}"
+
+
+class CategoryOptionPrice(TenantAwareModel):
+    """Preço padrão da categoria (Tipo 2 — bordas, adicionais…)."""
+
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name="option_prices",
+        db_column="category_id",
+    )
+    option = models.ForeignKey(
+        Option,
+        on_delete=models.CASCADE,
+        related_name="category_prices",
+        db_column="option_id",
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        db_table = "category_option_prices"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "option"],
+                name="uniq_category_option_price",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(price__gte=0),
+                name="category_option_prices_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["category"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.category.name} / {self.option.name}: {self.price}"
 
 
 class ProductOptionExclusion(TenantAwareModel):
