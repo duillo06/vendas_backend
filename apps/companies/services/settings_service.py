@@ -27,6 +27,7 @@ class SettingsService:
             "delivery_areas",
             "theme",
             "notification_settings",
+            "setup",
         }
 
         for key, value in fields.items():

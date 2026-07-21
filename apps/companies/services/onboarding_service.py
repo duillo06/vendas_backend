@@ -37,7 +37,16 @@ class OnboardingService:
         )
 
         # settings + 7 dias de horário
-        CompanySettings.objects.create(tenant=company)
+        CompanySettings.objects.create(
+            tenant=company,
+            setup={
+                "status": "pending",
+                "segment": None,
+                "steps": [],
+                "completed_at": None,
+                "dismissed_at": None,
+            },
+        )
         BusinessHoursService.create_defaults(company)
         RoleService.create_system_roles(company)
 

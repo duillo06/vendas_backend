@@ -59,6 +59,8 @@ class CompanySettings(TenantAwareModel):
     delivery_areas = models.JSONField(blank=True, null=True)
     theme = models.JSONField(blank=True, null=True)
     notification_settings = models.JSONField(blank=True, null=True)
+    # Fase 4 — progresso do assistente de 1ª configuração
+    setup = models.JSONField(blank=True, null=True, default=dict)
 
     class Meta:
         db_table = "company_settings"

@@ -7,10 +7,14 @@ from apps.catalog.views.admin_views import (
     AdminProductViewSet,
 )
 from apps.companies.views.admin_views import (
+    AdminAiSuggestionsStubView,
     AdminCoverUploadView,
     AdminDashboardView,
     AdminLogoUploadView,
     AdminSettingsView,
+    AdminSetupApplyView,
+    AdminSetupDismissView,
+    AdminSetupView,
 )
 from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
@@ -21,6 +25,10 @@ urlpatterns = [
     path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
     path("settings/logo/", AdminLogoUploadView.as_view(), name="admin-settings-logo"),
     path("settings/cover/", AdminCoverUploadView.as_view(), name="admin-settings-cover"),
+    path("setup/", AdminSetupView.as_view(), name="admin-setup"),
+    path("setup/apply/", AdminSetupApplyView.as_view(), name="admin-setup-apply"),
+    path("setup/dismiss/", AdminSetupDismissView.as_view(), name="admin-setup-dismiss"),
+    path("ai/suggestions/", AdminAiSuggestionsStubView.as_view(), name="admin-ai-suggestions"),
     path(
         "orders/",
         AdminOrderViewSet.as_view({"get": "list"}),

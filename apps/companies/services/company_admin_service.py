@@ -5,6 +5,7 @@ from django.db import transaction
 
 from apps.companies.models import BusinessHours, Company, CompanySettings
 from apps.companies.services.business_hours_service import BusinessHoursService
+from apps.companies.services.first_setup_service import FirstSetupService
 from apps.companies.services.settings_service import SettingsService
 from core.utils.media import absolutize_media_url
 
@@ -30,6 +31,7 @@ class CompanyAdminService:
             "auto_close_outside_hours": settings.auto_close_outside_hours,
             "payment_methods": settings.payment_methods,
             "theme": settings.theme,
+            "setup": FirstSetupService.normalize(settings.setup),
         }
 
     @staticmethod

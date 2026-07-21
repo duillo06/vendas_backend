@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from apps.accounts.authentication import EmployeeJWTAuthentication
 from apps.accounts.permissions import IsEmployeeAuthenticated
 from apps.companies.services.company_admin_service import CompanyAdminService
+from apps.companies.services.first_setup_service import FirstSetupError, FirstSetupService
 from apps.companies.services.logo_service import CompanyLogoService
 from apps.orders.services.dashboard_service import DashboardService
 from core.permissions.rbac import HasPermission
@@ -110,3 +111,84 @@ class AdminDashboardView(APIView):
 
         company = request.user.employee.tenant
         return Response(DashboardService.get_dashboard(company))
+
+
+class AdminSetupView(APIView):
+    """Estado e segmentos do assistente de 1ª configuração."""
+
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def get(self, request):
+        if not (
+            HasPermission("settings.manage").has_permission(request, self)
+            or HasPermission("catalog.manage").has_permission(request, self)
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        company = request.user.employee.tenant
+        return Response(
+            {
+                "setup": FirstSetupService.get(company),
+                "segments": FirstSetupService.list_segments(),
+            }
+        )
+
+
+class AdminSetupApplyView(APIView):
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def post(self, request):
+        if not HasPermission("catalog.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        segment = request.data.get("segment")
+        if not segment:
+            return Response(
+                {"error": {"code": "VALIDATION_ERROR", "message": "Escolha o que você vende"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        company = request.user.employee.tenant
+        try:
+            result = FirstSetupService.apply_segment(company, str(segment))
+        except FirstSetupError as exc:
+            return Response(
+                {"error": {"code": exc.code, "message": exc.message}},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        return Response(result)
+
+
+class AdminSetupDismissView(APIView):
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def post(self, request):
+        if not (
+            HasPermission("settings.manage").has_permission(request, self)
+            or HasPermission("catalog.manage").has_permission(request, self)
+        ):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        company = request.user.employee.tenant
+        return Response({"setup": FirstSetupService.dismiss(company)})
+
+
+class AdminAiSuggestionsStubView(APIView):
+    """Hook futuro de IA — stub da Fase 4 (sem modelo)."""
+
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def get(self, request):
+        return Response(
+            {
+                "available": False,
+                "suggestions": [],
+                "message": "Sugestões inteligentes chegam em breve.",
+            }
+        )
+
+    def post(self, request):
+        return self.get(request)
