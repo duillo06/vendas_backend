@@ -297,7 +297,7 @@ class ProductComposition(TenantAwareModel):
     )
     label = models.CharField(max_length=80, blank=True, default="Escolher outro sabor")
     # total de partes contando o produto principal (o cliente escolhe partes - 1)
-    min_parts = models.PositiveIntegerField(default=2)
+    min_parts = models.PositiveIntegerField(default=1)
     max_parts = models.PositiveIntegerField(default=2)
     pricing_rule = models.CharField(
         max_length=20,

@@ -159,7 +159,7 @@ class ProductCompositionWriteSerializer(serializers.Serializer):
         default=list,
     )
     label = serializers.CharField(required=False, allow_blank=True, max_length=80, default="")
-    min_parts = serializers.IntegerField(required=False, min_value=1, default=2)
+    min_parts = serializers.IntegerField(required=False, min_value=1, default=1)
     max_parts = serializers.IntegerField(required=False, min_value=1, default=2)
     pricing_rule = serializers.ChoiceField(
         choices=["highest", "average", "sum", "main"],
@@ -168,8 +168,10 @@ class ProductCompositionWriteSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        if attrs.get("max_parts", 2) < attrs.get("min_parts", 2):
-            raise serializers.ValidationError("max_parts deve ser >= min_parts")
+        # combinar sabores é direito, nunca obrigação
+        attrs["min_parts"] = 1
+        if attrs.get("max_parts", 2) < 1:
+            raise serializers.ValidationError("max_parts deve ser >= 1")
         return attrs
 
 

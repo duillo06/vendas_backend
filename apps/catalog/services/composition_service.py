@@ -57,11 +57,12 @@ class CompositionService:
 
         clean_ids = [str(cid) for cid in component_ids if cid]
         # total de partes = principal + escolhidos
+        # max = teto; min nunca obriga combinar (sempre pode pedir só o principal)
         total_parts = 1 + len(clean_ids)
-        if total_parts < config.min_parts or total_parts > config.max_parts:
+        if total_parts > config.max_parts:
             raise ValueError(
-                f"Escolha entre {config.min_parts - 1} e {config.max_parts - 1} "
-                f"produto(s) para compor {product.name}",
+                f"Você pode combinar no máximo {config.max_parts - 1} "
+                f"produto(s) com {product.name}",
             )
 
         if not clean_ids:

@@ -17,7 +17,14 @@ from apps.orders.domain.enums import (
     VALID_TRANSITIONS,
 )
 from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError
-from apps.orders.models import Order, OrderItem, OrderItemOption, OrderPayment, OrderStatusHistory
+from apps.orders.models import (
+    Order,
+    OrderItem,
+    OrderItemComponent,
+    OrderItemOption,
+    OrderPayment,
+    OrderStatusHistory,
+)
 from apps.orders.services.cart_validation_service import CartValidationService
 from apps.catalog.services.option_stock_service import OptionStockService
 from core.utils.money import round_money
@@ -131,6 +138,15 @@ class OrderService:
                     price_modifier=opt["price_modifier"],
                     quantity=opt.get("quantity", 1),
                     option_id=opt.get("option_id"),
+                )
+            for comp in item_data.get("components") or []:
+                OrderItemComponent.objects.create(
+                    tenant=tenant,
+                    order_item=order_item,
+                    product_id=comp["product_id"],
+                    product_name=comp["product_name"],
+                    base_price=comp["base_price"],
+                    sort_order=comp.get("sort_order", 0),
                 )
 
         OptionStockService.decrement_for_order(validated_items=validated_items)

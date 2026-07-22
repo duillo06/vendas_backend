@@ -27,6 +27,13 @@ class CheckoutItemSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1, max_value=99)
     notes = serializers.CharField(max_length=255, required=False, allow_blank=True)
     options = CheckoutItemOptionSerializer(many=True, required=False, default=list)
+    # outros sabores (meio a meio) — opcional; só o teto (max) importa
+    components = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        max_length=11,
+    )
 
 
 class CheckoutSerializer(serializers.Serializer):

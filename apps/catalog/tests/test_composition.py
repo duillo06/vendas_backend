@@ -44,7 +44,7 @@ def pizza_setup(demo_store):
         product=calabresa,
         is_enabled=True,
         source_type="category",
-        min_parts=2,
+        min_parts=1,
         max_parts=2,
         pricing_rule="highest",
     )
@@ -125,10 +125,10 @@ def test_checkout_with_composition_charges_highest(api_client, pizza_setup):
 
 @pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
-def test_checkout_rejects_wrong_part_count(api_client, pizza_setup):
+def test_checkout_allows_single_flavor_when_composition_enabled(api_client, pizza_setup):
     _, calabresa, _ = pizza_setup
 
-    # composição exige 2 partes (1 extra); mandar 0 extras deve falhar
+    # "até 2 sabores" = teto; pedir só o principal é válido
     response = api_client.post(
         "/api/v1/public/orders/checkout/",
         {
@@ -142,7 +142,42 @@ def test_checkout_rejects_wrong_part_count(api_client, pizza_setup):
         HTTP_HOST="demo.localhost:8001",
     )
 
-    # erro de composição vira 422 (regra de negócio)
+    assert response.status_code == 201, response.json()
+    assert Decimal(str(response.json()["total"])) == Decimal("40.00")
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_rejects_too_many_parts(api_client, pizza_setup):
+    _, calabresa, portuguesa = pizza_setup
+    # max_parts=2 → no máximo 1 extra; mandar 2 extras deve falhar
+    extra = Product.all_objects.create(
+        tenant=calabresa.tenant,
+        category=calabresa.category,
+        name="Pizza Frango",
+        slug="pizza-frango",
+        base_price=Decimal("45.00"),
+    )
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {
+            "customer_name": "Maria",
+            "customer_phone": "(11) 98765-4321",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "items": [
+                {
+                    "product_id": str(calabresa.id),
+                    "quantity": 1,
+                    "components": [str(portuguesa.id), str(extra.id)],
+                },
+            ],
+        },
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
     assert response.status_code == 422
 
 

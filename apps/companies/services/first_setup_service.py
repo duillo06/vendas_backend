@@ -326,7 +326,7 @@ class FirstSetupService:
                         "is_required": False,
                         "sort_order": sort_cap,
                         "settings": {
-                            "min_parts": 2,
+                            "min_parts": 1,
                             "max_parts": int(half.get("max_parts", 2)),
                             "pricing_rule": half.get("pricing_rule", "highest"),
                             "label": "Escolher outro sabor",

@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from apps.catalog.domain.exceptions import InvalidOptionSelection
 from apps.catalog.models import Option, Product
+from apps.catalog.services.composition_service import CompositionService
 from apps.catalog.services.option_price_resolver import OptionPriceResolver
 from apps.catalog.services.price_calculator import PriceCalculator
 from apps.catalog.services.pricing_engine import PricingEngine
@@ -34,7 +35,7 @@ class CartValidationService:
                 raise InvalidOptionsError("Quantidade inválida")
 
             try:
-                product = Product.objects.get(
+                product = Product.objects.select_related("composition").get(
                     id=product_id,
                     is_active=True,
                     deleted_at__isnull=True,
@@ -45,6 +46,12 @@ class CartValidationService:
             if not product.is_available:
                 raise ProductUnavailableError(f"{product.name} indisponível")
 
+            raw_components = raw.get("components") or []
+            try:
+                chosen_parts = CompositionService.validate_selection(product, raw_components)
+            except ValueError as exc:
+                raise InvalidOptionsError(str(exc)) from exc
+
             raw_options = raw.get("options") or []
             selections = CartValidationService._group_options_by_product(product, raw_options)
 
@@ -53,7 +60,17 @@ class CartValidationService:
             except InvalidOptionSelection as exc:
                 raise InvalidOptionsError(str(exc)) from exc
 
-            unit_price = PriceCalculator.calculate_item_price(product, selected_entries)
+            price_with_options = PriceCalculator.calculate_item_price(product, selected_entries)
+            # composição troca a base; opções somam em cima (igual ao cardápio)
+            if chosen_parts:
+                composed = CompositionService.composed_base_price(
+                    product,
+                    [product, *chosen_parts],
+                )
+                options_delta = price_with_options - Decimal(product.base_price)
+                unit_price = round_money(composed + options_delta)
+            else:
+                unit_price = price_with_options
             total_price = round_money(unit_price * Decimal(quantity))
 
             price_overrides = OptionPriceResolver.effective_overrides_for_product(product)
@@ -71,6 +88,15 @@ class CartValidationService:
                 }
                 for entry in selected_entries
             ]
+            component_snapshots = [
+                {
+                    "product_id": str(part.id),
+                    "product_name": part.name,
+                    "base_price": Decimal(part.base_price),
+                    "sort_order": index,
+                }
+                for index, part in enumerate(chosen_parts)
+            ]
 
             validated.append(
                 {
@@ -81,6 +107,7 @@ class CartValidationService:
                     "total_price": total_price,
                     "notes": (raw.get("notes") or "")[:255],
                     "options": option_snapshots,
+                    "components": component_snapshots,
                 }
             )
 

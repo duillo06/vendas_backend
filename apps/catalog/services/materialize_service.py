@@ -99,7 +99,7 @@ class MaterializeService:
             defaults={
                 "tenant_id": product.tenant_id,
                 "is_enabled": True,
-                "min_parts": int(settings.get("min_parts", 2)),
+                "min_parts": int(settings.get("min_parts", 1)),
                 "max_parts": int(settings.get("max_parts", 2)),
                 "pricing_rule": settings.get("pricing_rule", "highest"),
                 "label": settings.get("label", "Escolher outro sabor"),
