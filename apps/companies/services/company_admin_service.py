@@ -7,6 +7,7 @@ from apps.companies.models import BusinessHours, Company, CompanySettings
 from apps.companies.services.business_hours_service import BusinessHoursService
 from apps.companies.services.first_setup_service import FirstSetupService
 from apps.companies.services.settings_service import SettingsService
+from apps.customers.domain.validators import normalize_phone
 from core.utils.media import absolutize_media_url
 
 COMPANY_FIELDS = {"legal_name", "trade_name", "document", "email", "phone", "description"}
@@ -27,6 +28,8 @@ class CompanyAdminService:
             "estimated_delivery_time": settings.estimated_delivery_time,
             "accepts_delivery": settings.accepts_delivery,
             "accepts_pickup": settings.accepts_pickup,
+            "delivery_city": settings.delivery_city or "",
+            "delivery_state": settings.delivery_state or "",
             "is_open": settings.is_open,
             "auto_close_outside_hours": settings.auto_close_outside_hours,
             "payment_methods": settings.payment_methods,
@@ -81,6 +84,9 @@ class CompanyAdminService:
             for key, value in company_data.items():
                 if key not in COMPANY_FIELDS:
                     raise ValidationError(f"Campo de empresa inválido: {key}")
+                if key == "phone":
+                    raw = (value or "").strip() if isinstance(value, str) else ""
+                    value = normalize_phone(raw) if raw else None
                 setattr(company, key, value)
             company.save()
 

@@ -26,6 +26,11 @@ class MinOrderValueError(DomainException):
     message = "Valor mínimo do pedido não atingido"
 
 
+class OutOfDeliveryAreaError(DomainException):
+    code = "OUT_OF_DELIVERY_AREA"
+    message = "Não entregamos nesse endereço"
+
+
 class InvalidOrderTransition(DomainException):
     code = "INVALID_ORDER_TRANSITION"
 

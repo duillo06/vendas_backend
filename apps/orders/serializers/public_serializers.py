@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.orders.domain.enums import DeliveryType, PaymentMethod
 from apps.orders.models import Order
+from core.serializers.fields import GeoCoordinateField
 
 
 class CheckoutAddressSerializer(serializers.Serializer):
@@ -13,8 +14,10 @@ class CheckoutAddressSerializer(serializers.Serializer):
     neighborhood = serializers.CharField(max_length=100)
     city = serializers.CharField(max_length=100)
     state = serializers.CharField(max_length=2)
-    zip_code = serializers.CharField(max_length=9)
+    zip_code = serializers.CharField(max_length=9, required=False, allow_blank=True, default="")
     reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    latitude = GeoCoordinateField()
+    longitude = GeoCoordinateField()
 
 
 class CheckoutItemOptionSerializer(serializers.Serializer):

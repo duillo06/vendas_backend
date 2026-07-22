@@ -25,6 +25,8 @@ class SettingsService:
             "auto_close_outside_hours",
             "payment_methods",
             "delivery_areas",
+            "delivery_city",
+            "delivery_state",
             "theme",
             "notification_settings",
             "setup",

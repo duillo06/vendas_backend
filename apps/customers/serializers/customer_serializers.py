@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.customers.models import Customer, CustomerAddress
+from core.serializers.fields import GeoCoordinateField
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -43,6 +44,8 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
             "state",
             "zip_code",
             "reference",
+            "latitude",
+            "longitude",
             "is_default",
             "created_at",
             "updated_at",
@@ -50,8 +53,12 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def to_representation(self, instance):
-        data = super().to_representation(instance) # to_representation indica que vamos enviar todo o objeto que foi retornado pelo model
-        data["id"] = str(instance.id) # aqui estamos convertendo o id para string, pois o id é um objeto UUID e o cliente precisa de um string
+        data = super().to_representation(instance)
+        data["id"] = str(instance.id)
+        if instance.latitude is not None:
+            data["latitude"] = float(instance.latitude)
+        if instance.longitude is not None:
+            data["longitude"] = float(instance.longitude)
         return data
 
 
@@ -63,8 +70,10 @@ class CustomerAddressWriteSerializer(serializers.Serializer):
     neighborhood = serializers.CharField(max_length=100)
     city = serializers.CharField(max_length=100)
     state = serializers.CharField(max_length=2)
-    zip_code = serializers.CharField(max_length=9)
+    zip_code = serializers.CharField(max_length=9, required=False, allow_blank=True, default="")
     reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    latitude = GeoCoordinateField()
+    longitude = GeoCoordinateField()
     is_default = serializers.BooleanField(required=False, default=False)
 
 

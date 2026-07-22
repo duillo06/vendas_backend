@@ -45,6 +45,8 @@ class PublicCompanyView(APIView):
                     "estimated_delivery_time": settings.estimated_delivery_time,
                     "accepts_delivery": settings.accepts_delivery,
                     "accepts_pickup": settings.accepts_pickup,
+                    "delivery_city": settings.delivery_city or "",
+                    "delivery_state": settings.delivery_state or "",
                     "payment_methods": settings.payment_methods,
                 },
                 "business_hours": [

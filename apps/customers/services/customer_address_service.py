@@ -32,8 +32,10 @@ class CustomerAddressService:
             neighborhood=data["neighborhood"],
             city=data["city"],
             state=data["state"],
-            zip_code=data["zip_code"],
+            zip_code=data.get("zip_code") or "",
             reference=data.get("reference") or "",
+            latitude=data.get("latitude"),
+            longitude=data.get("longitude"),
             is_default=is_default,
         )
 
@@ -50,9 +52,15 @@ class CustomerAddressService:
             "state",
             "zip_code",
             "reference",
+            "latitude",
+            "longitude",
         ):
             if field in data:
-                setattr(address, field, data[field] or "")
+                value = data[field]
+                if field in ("latitude", "longitude"):
+                    setattr(address, field, value)
+                else:
+                    setattr(address, field, value or "")
 
         if data.get("is_default") is True:
             CustomerAddress.objects.filter(customer=address.customer, is_default=True).exclude(

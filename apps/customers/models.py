@@ -60,7 +60,7 @@ class CustomerAddress(TenantAwareModel):
     neighborhood = models.CharField(max_length=100)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=2)
-    zip_code = models.CharField(max_length=9)
+    zip_code = models.CharField(max_length=9, blank=True, default="")
     reference = models.CharField(max_length=255, blank=True, default="")
     latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)

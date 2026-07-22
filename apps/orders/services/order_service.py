@@ -16,7 +16,7 @@ from apps.orders.domain.enums import (
     PaymentStatus,
     VALID_TRANSITIONS,
 )
-from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError
+from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError, OutOfDeliveryAreaError
 from apps.orders.models import (
     Order,
     OrderItem,
@@ -27,10 +27,42 @@ from apps.orders.models import (
 )
 from apps.orders.services.cart_validation_service import CartValidationService
 from apps.catalog.services.option_stock_service import OptionStockService
+from apps.companies.services.geo_service import cities_match, normalize_state
 from core.utils.money import round_money
 
 
 class OrderService:
+    @staticmethod
+    def _assert_delivery_area(*, settings, address: dict | None) -> None:
+        store_city = (settings.delivery_city or "").strip()
+        store_state = normalize_state(settings.delivery_state or "")
+        if not store_city or not store_state:
+            return
+        if not address:
+            return
+
+        city = (address.get("city") or "").strip()
+        state = normalize_state(address.get("state") or "")
+        if cities_match(city, store_city) and state == store_state:
+            return
+
+        raise OutOfDeliveryAreaError(
+            f"Não entregamos em {city or 'outra cidade'}. "
+            f"Nossa entrega é só em {store_city} ({store_state})."
+        )
+
+    @staticmethod
+    def _json_safe_address(address: dict | None) -> dict | None:
+        """JSONB não aceita Decimal — lat/lng viram float"""
+        if not address:
+            return None
+        safe = dict(address)
+        for key in ("latitude", "longitude"):
+            value = safe.get(key)
+            if isinstance(value, Decimal):
+                safe[key] = float(value)
+        return safe
+
     @staticmethod
     @transaction.atomic
     def create_from_checkout(
@@ -53,6 +85,11 @@ class OrderService:
             )
 
         delivery_type = data["delivery_type"]
+        address = data.get("address") if delivery_type == DeliveryType.DELIVERY else None
+        if delivery_type == DeliveryType.DELIVERY:
+            OrderService._assert_delivery_area(settings=settings, address=address)
+        address = OrderService._json_safe_address(address)
+
         delivery_fee = OrderService._calculate_delivery_fee(
             tenant=tenant,
             delivery_type=delivery_type,
@@ -93,8 +130,6 @@ class OrderService:
         now = timezone.now()
         prep_delta = timedelta(minutes=settings.estimated_prep_time)
         delivery_delta = timedelta(minutes=settings.estimated_delivery_time)
-
-        address = data.get("address") if delivery_type == DeliveryType.DELIVERY else None
 
         order = Order.objects.create(
             tenant=tenant,

@@ -57,6 +57,9 @@ class CompanySettings(TenantAwareModel):
     auto_close_outside_hours = models.BooleanField(default=True)
     payment_methods = models.JSONField(default=list)
     delivery_areas = models.JSONField(blank=True, null=True)
+    # cidade/UF onde a loja entrega — vazio = ainda não restringe
+    delivery_city = models.CharField(max_length=100, blank=True, default="")
+    delivery_state = models.CharField(max_length=2, blank=True, default="")
     theme = models.JSONField(blank=True, null=True)
     notification_settings = models.JSONField(blank=True, null=True)
     # Fase 4 — progresso do assistente de 1ª configuração

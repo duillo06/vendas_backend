@@ -448,7 +448,13 @@ def seed_demo_rich(
 
     TenantContext.set(company)
     try:
-        SettingsService.update(company, auto_close_outside_hours=False, is_open=True)
+        SettingsService.update(
+            company,
+            auto_close_outside_hours=False,
+            is_open=True,
+            delivery_city="São Paulo",
+            delivery_state="SP",
+        )
         _branding(company, log, skip_images)
         _dedupe_product_images(company, log)
 

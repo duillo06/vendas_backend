@@ -205,3 +205,92 @@ def test_public_order_tracking(api_client, demo_store, x_burger_option_ids):
     assert response.status_code == 200
     assert response.json()["id"] == created["id"]
     assert len(response.json()["status_history"]) >= 1
+
+
+def _delivery_payload(product_id, options, *, city="São Paulo", state="SP", zip_code="01310-100"):
+    return {
+        "customer_name": "Maria Santos",
+        "customer_phone": "(11) 98765-4321",
+        "delivery_type": "delivery",
+        "payment_method": "pix",
+        "address": {
+            "street": "Rua das Flores",
+            "number": "100",
+            "neighborhood": "Centro",
+            "city": city,
+            "state": state,
+            "zip_code": zip_code,
+        },
+        "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+    }
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_delivery_same_city_ok(api_client, demo_store, x_burger_option_ids):
+    SettingsService.update(demo_store, delivery_city="São Paulo", delivery_state="SP")
+    product_id, options = x_burger_option_ids
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        _delivery_payload(product_id, options, city="Sao Paulo", state="sp"),
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 201
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_delivery_other_city_blocked(api_client, demo_store, x_burger_option_ids):
+    SettingsService.update(demo_store, delivery_city="São Paulo", delivery_state="SP")
+    product_id, options = x_burger_option_ids
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        _delivery_payload(product_id, options, city="Campinas", state="SP"),
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "OUT_OF_DELIVERY_AREA"
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_delivery_without_store_city_ok(api_client, demo_store, x_burger_option_ids):
+    SettingsService.update(demo_store, delivery_city="", delivery_state="")
+    product_id, options = x_burger_option_ids
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        _delivery_payload(product_id, options, city="Campinas", state="SP", zip_code=""),
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 201
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_pickup_ignores_delivery_city(api_client, demo_store, x_burger_option_ids):
+    SettingsService.update(demo_store, delivery_city="São Paulo", delivery_state="SP")
+    product_id, options = x_burger_option_ids
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {
+            "customer_name": "João",
+            "customer_phone": "(11) 98888-7777",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+        },
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 201
