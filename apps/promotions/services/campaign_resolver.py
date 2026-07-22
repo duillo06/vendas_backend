@@ -28,6 +28,7 @@ class ResolvedOffer:
             "discount_percent": self.discount_percent,
             "badges": self.badges,
             "title": self.campaign.title,
+            "weight": int(self.campaign.weight or 10),
             "ends_at": self.campaign.ends_at.isoformat() if self.campaign.ends_at else None,
             "show_on_home": self.campaign.show_on_home and not self.campaign.link_only,
             "show_on_menu": self.campaign.show_on_menu and not self.campaign.link_only,
@@ -148,6 +149,7 @@ class CampaignResolver:
 
     @staticmethod
     def list_home_offers(*, tenant_id, now: datetime | None = None) -> list[ResolvedOffer]:
+        """Vitrine: maior weight primeiro; 1 card por produto (empate → menor preço)."""
         now = now or timezone.now()
         qs = (
             Campaign.all_objects.filter(
@@ -159,14 +161,11 @@ class CampaignResolver:
             )
             .select_related("product")
             .prefetch_related("product__images")
-            .order_by("promo_price", "-created_at")
+            .order_by("-weight", "promo_price", "-created_at")
         )
-        offers: list[ResolvedOffer] = []
-        seen_products: set = set()
+        best_by_product: dict = {}
         for campaign in qs:
             if not CampaignResolver.is_eligible(campaign, now):
-                continue
-            if campaign.product_id in seen_products:
                 continue
             if campaign.promo_price is None or campaign.reference_price is None:
                 continue
@@ -175,21 +174,33 @@ class CampaignResolver:
                 continue
             if not product.is_available:
                 continue
+
             save, pct = CampaignResolver.indicators(campaign.reference_price, campaign.promo_price)
-            offers.append(
-                ResolvedOffer(
-                    campaign=campaign,
-                    promo_price=round_money(campaign.promo_price),
-                    reference_price=round_money(campaign.reference_price),
-                    save_amount=save,
-                    discount_percent=pct,
-                    badges=CampaignResolver.badges_for(
-                        save=save,
-                        pct=pct,
-                        ends_at=campaign.ends_at,
-                        now=now,
-                    ),
-                )
+            offer = ResolvedOffer(
+                campaign=campaign,
+                promo_price=round_money(campaign.promo_price),
+                reference_price=round_money(campaign.reference_price),
+                save_amount=save,
+                discount_percent=pct,
+                badges=CampaignResolver.badges_for(
+                    save=save,
+                    pct=pct,
+                    ends_at=campaign.ends_at,
+                    now=now,
+                ),
             )
-            seen_products.add(campaign.product_id)
-        return offers
+            pid = campaign.product_id
+            prev = best_by_product.get(pid)
+            if prev is None:
+                best_by_product[pid] = offer
+                continue
+            # vitrine: peso manda; checkout continua com menor preço em resolve_product
+            if campaign.weight > prev.campaign.weight:
+                best_by_product[pid] = offer
+            elif campaign.weight == prev.campaign.weight and offer.promo_price < prev.promo_price:
+                best_by_product[pid] = offer
+
+        return sorted(
+            best_by_product.values(),
+            key=lambda o: (-int(o.campaign.weight or 10), o.promo_price),
+        )

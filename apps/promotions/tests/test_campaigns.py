@@ -152,6 +152,104 @@ def test_public_offers_and_product_overlay(api_client, demo_store, product):
 
 
 @pytest.mark.django_db
+def test_home_offers_sorted_by_weight(demo_store, product):
+    cat = product.category
+    other = Product.all_objects.create(
+        tenant=demo_store,
+        category=cat,
+        name="Pizza Margherita",
+        slug="pizza-margherita",
+        base_price=Decimal("65.00"),
+    )
+    low = CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": product.id,
+            "promo_price": "50.00",
+            "weight": 10,
+            "show_on_home": True,
+            "starts_at": timezone.now() - timedelta(hours=1),
+        },
+    )
+    high = CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": other.id,
+            "promo_price": "55.00",
+            "weight": 200,
+            "show_on_home": True,
+            "starts_at": timezone.now() - timedelta(hours=1),
+        },
+    )
+    offers = CampaignResolver.list_home_offers(tenant_id=demo_store.id)
+    assert [o.campaign.id for o in offers] == [high.id, low.id]
+    assert offers[0].campaign.weight == 200
+
+
+@pytest.mark.django_db
+def test_home_prefers_higher_weight_same_product(demo_store, product):
+    # checkout: menor preço; vitrine: maior peso no card do produto
+    CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": product.id,
+            "promo_price": "40.00",
+            "weight": 10,
+            "show_on_home": True,
+            "starts_at": timezone.now() - timedelta(hours=1),
+        },
+    )
+    featured = CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": product.id,
+            "promo_price": "50.00",
+            "weight": 100,
+            "show_on_home": True,
+            "starts_at": timezone.now() - timedelta(hours=1),
+        },
+    )
+    offers = CampaignResolver.list_home_offers(tenant_id=demo_store.id)
+    assert len(offers) == 1
+    assert offers[0].campaign.id == featured.id
+    assert offers[0].promo_price == Decimal("50.00")
+
+    checkout = CampaignResolver.resolve_product(product)
+    assert checkout is not None
+    assert checkout.promo_price == Decimal("40.00")
+
+
+@pytest.mark.django_db
+def test_update_campaign_promo_price(demo_store, product):
+    campaign = CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": product.id,
+            "promo_price": "59.00",
+            "starts_at": timezone.now() - timedelta(hours=1),
+        },
+    )
+    updated = CampaignService.update(
+        campaign=campaign,
+        data={"promo_price": "49.00", "weight": 100},
+    )
+    assert updated.promo_price == Decimal("49.00")
+    assert updated.weight == 100
+
+    now = timezone.now()
+    campaign = CampaignService.create(
+        tenant=demo_store,
+        data={
+            "product_id": product.id,
+            "promo_price": "59.00",
+            "starts_at": now - timedelta(hours=1),
+            "ends_at": now + timedelta(hours=6),
+        },
+    )
+    assert campaign.weight == 200
+
+
+@pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
 def test_admin_create_campaign(api_client, demo_store, product):
     login = api_client.post(
@@ -177,4 +275,5 @@ def test_admin_create_campaign(api_client, demo_store, product):
     )
     assert response.status_code == 201, response.json()
     assert response.json()["promo_price"] == 55.0
+    assert response.json()["weight"] == 10
     assert Campaign.all_objects.filter(tenant=demo_store).count() == 1

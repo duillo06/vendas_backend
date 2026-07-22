@@ -47,6 +47,7 @@ class CampaignWriteSerializer(serializers.Serializer):
     show_on_product = serializers.BooleanField(required=False, default=True)
     link_only = serializers.BooleanField(required=False, default=False)
     show_as_banner = serializers.BooleanField(required=False, default=False)
+    weight = serializers.IntegerField(required=False, min_value=1, max_value=1000)
 
 
 class CampaignAdminSerializer(serializers.ModelSerializer):
@@ -77,6 +78,7 @@ class CampaignAdminSerializer(serializers.ModelSerializer):
             "show_on_product",
             "link_only",
             "show_as_banner",
+            "weight",
             "save_amount",
             "discount_percent",
             "badges",

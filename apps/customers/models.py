@@ -70,6 +70,6 @@ class CustomerAddress(TenantAwareModel):
         db_table = "customer_addresses"
         ordering = ["-is_default", "-created_at"]
         indexes = [
-            models.Index(fields=["customer"]),
-            models.Index(fields=["tenant", "customer"]),
+            models.Index(fields=["customer"], name="customer_ad_custome_0f0f0d_idx"),
+            models.Index(fields=["tenant", "customer"], name="customer_ad_tenant__a1b2c3_idx"),
         ]

@@ -16,6 +16,32 @@ from apps.promotions.domain.exceptions import InvalidCampaignError
 from apps.promotions.models import Campaign
 from core.utils.money import round_money
 
+# pesos ilustrativos do pilar Home (§8) — sem jargão na UI
+WEIGHT_COMMON = 10
+WEIGHT_MONTHLY = 100
+WEIGHT_FLASH = 200
+WEIGHT_SEASONAL = 600
+
+
+def resolve_campaign_weight(data: dict, *, starts_at, ends_at) -> int:
+    """Define peso da vitrine a partir do contexto (ou valor explícito)."""
+    if data.get("weight") is not None:
+        try:
+            return max(1, int(data["weight"]))
+        except (TypeError, ValueError):
+            pass
+
+    recurrence = data.get("recurrence_type", RecurrenceType.ONCE)
+    if recurrence == RecurrenceType.COMMEMORATIVE:
+        return WEIGHT_SEASONAL
+    if data.get("show_as_banner"):
+        return WEIGHT_FLASH
+    if ends_at is not None and starts_at is not None:
+        span = (ends_at - starts_at).total_seconds()
+        if 0 < span <= 24 * 3600:
+            return WEIGHT_FLASH
+    return WEIGHT_COMMON
+
 
 class CampaignService:
     @staticmethod
@@ -60,6 +86,7 @@ class CampaignService:
         title = (data.get("title") or "").strip() or f"{product.name} em oferta"
 
         link_only = bool(data.get("link_only", False))
+        weight = resolve_campaign_weight(data, starts_at=starts_at, ends_at=ends_at)
         campaign = Campaign.all_objects.create(
             tenant=tenant,
             commercial_goal=data.get("commercial_goal", CommercialGoal.INCREASE_SALES),
@@ -78,6 +105,7 @@ class CampaignService:
             show_on_product=bool(data.get("show_on_product", True)),
             link_only=link_only,
             show_as_banner=bool(data.get("show_as_banner", False)),
+            weight=weight,
         )
         return campaign
 
@@ -90,12 +118,28 @@ class CampaignService:
                 raise InvalidCampaignError("Status inválido")
             campaign.status = status
 
+        if "product_id" in data and data["product_id"]:
+            try:
+                product = Product.objects.get(id=data["product_id"], tenant=campaign.tenant)
+            except Product.DoesNotExist as exc:
+                raise InvalidCampaignError("Produto não encontrado") from exc
+            campaign.product = product
+            campaign.reference_price = round_money(Decimal(product.base_price))
+            if not (campaign.title or "").strip():
+                campaign.title = f"{product.name} em oferta"
+
         if "promo_price" in data and data["promo_price"] is not None:
             promo = round_money(Decimal(str(data["promo_price"])))
             ref = Decimal(campaign.reference_price or 0)
             if promo <= 0 or (ref and promo >= ref):
                 raise InvalidCampaignError("O novo preço precisa ser menor que o preço de referência")
             campaign.promo_price = promo
+        elif campaign.promo_price is not None and campaign.reference_price is not None:
+            # produto mudou e o preço antigo pode ter ficado inválido
+            if campaign.promo_price >= campaign.reference_price:
+                raise InvalidCampaignError(
+                    "O preço promocional precisa ser menor que o preço atual do produto"
+                )
 
         for field in (
             "title",
@@ -109,6 +153,7 @@ class CampaignService:
             "starts_at",
             "ends_at",
             "commercial_goal",
+            "weight",
         ):
             if field not in data:
                 continue
@@ -117,6 +162,8 @@ class CampaignService:
                 value = parse_datetime(value)
             if field == "weekdays" and value is not None:
                 value = [int(d) for d in value]
+            if field == "weight" and value is not None:
+                value = max(1, int(value))
             setattr(campaign, field, value)
 
         if campaign.link_only:

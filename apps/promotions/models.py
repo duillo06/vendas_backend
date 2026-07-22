@@ -58,13 +58,20 @@ class Campaign(TenantAwareModel):
     link_only = models.BooleanField(default=False)
     show_as_banner = models.BooleanField(default=False)
 
+    # prioridade na Home — comerciante não vê este nome
+    weight = models.PositiveIntegerField(
+        default=10,
+        help_text="Prioridade na vitrine (maior = mais destaque). Interno.",
+    )
+
     class Meta:
         db_table = "campaigns"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["tenant", "status"]),
-            models.Index(fields=["tenant", "product", "status"]),
-            models.Index(fields=["tenant", "starts_at", "ends_at"]),
+            models.Index(fields=["tenant", "status"], name="campaigns_tenant__d8e2a0_idx"),
+            models.Index(fields=["tenant", "product", "status"], name="campaigns_tenant__23d733_idx"),
+            models.Index(fields=["tenant", "starts_at", "ends_at"], name="campaigns_tenant__89f162_idx"),
+            models.Index(fields=["tenant", "weight"], name="campaigns_tenant__weight_idx"),
         ]
 
     def __str__(self) -> str:
