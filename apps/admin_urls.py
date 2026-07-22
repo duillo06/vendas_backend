@@ -18,6 +18,7 @@ from apps.companies.views.admin_views import (
 )
 from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
+from apps.promotions.views.admin_views import AdminCampaignViewSet
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),
@@ -143,4 +144,14 @@ urlpatterns = [
     ),
     path("customers/", AdminCustomerListView.as_view(), name="admin-customers"),
     path("customers/<uuid:customer_id>/", AdminCustomerDetailView.as_view(), name="admin-customer-detail"),
+    path(
+        "campaigns/",
+        AdminCampaignViewSet.as_view({"get": "list", "post": "create"}),
+        name="admin-campaigns",
+    ),
+    path(
+        "campaigns/<uuid:pk>/",
+        AdminCampaignViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        name="admin-campaign-detail",
+    ),
 ]

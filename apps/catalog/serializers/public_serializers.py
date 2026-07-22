@@ -90,6 +90,15 @@ class ProductListPublicSerializer(serializers.ModelSerializer):
         data["base_price"] = float(instance.base_price)
         if instance.compare_price is not None:
             data["compare_price"] = float(instance.compare_price)
+
+        # oferta ativa: Por = promo, De = referência
+        from apps.promotions.services.campaign_resolver import CampaignResolver
+
+        offer = CampaignResolver.resolve_product(instance)
+        if offer is not None and offer.campaign.show_on_menu and not offer.campaign.link_only:
+            data["base_price"] = float(offer.promo_price)
+            data["compare_price"] = float(offer.reference_price)
+            data["promotion"] = offer.as_public_dict()
         return data
 
 
@@ -246,4 +255,12 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         data["base_price"] = float(instance.base_price)
         if instance.compare_price is not None:
             data["compare_price"] = float(instance.compare_price)
+
+        from apps.promotions.services.campaign_resolver import CampaignResolver
+
+        offer = CampaignResolver.resolve_product(instance)
+        if offer is not None and offer.campaign.show_on_product and not offer.campaign.link_only:
+            data["base_price"] = float(offer.promo_price)
+            data["compare_price"] = float(offer.reference_price)
+            data["promotion"] = offer.as_public_dict()
         return data

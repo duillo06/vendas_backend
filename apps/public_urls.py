@@ -5,4 +5,5 @@ urlpatterns = [
     path("catalog/", include("apps.catalog.public_urls")),
     path("orders/", include("apps.orders.public_urls")),
     path("account/", include("apps.customers.account_urls")),
+    path("promotions/", include("apps.promotions.public_urls")),
 ]

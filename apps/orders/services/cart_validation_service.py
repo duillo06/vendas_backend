@@ -61,16 +61,20 @@ class CartValidationService:
                 raise InvalidOptionsError(str(exc)) from exc
 
             price_with_options = PriceCalculator.calculate_item_price(product, selected_entries)
-            # composição troca a base; opções somam em cima (igual ao cardápio)
+            catalog_base = Decimal(product.base_price)
+            options_delta = price_with_options - catalog_base
+            # promoção troca a base; opções/composição em cima
             if chosen_parts:
                 composed = CompositionService.composed_base_price(
                     product,
                     [product, *chosen_parts],
                 )
-                options_delta = price_with_options - Decimal(product.base_price)
                 unit_price = round_money(composed + options_delta)
             else:
-                unit_price = price_with_options
+                from apps.promotions.services.campaign_resolver import CampaignResolver
+
+                effective_base = CampaignResolver.effective_base_price(product)
+                unit_price = round_money(effective_base + options_delta)
             total_price = round_money(unit_price * Decimal(quantity))
 
             price_overrides = OptionPriceResolver.effective_overrides_for_product(product)
