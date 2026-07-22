@@ -249,6 +249,8 @@ class OrderService:
 
         order.save()
         OrderService._record_status(order, current, new_status, employee, notes)
+        # WhatsApp etc. — fail soft dentro do motor
+        transaction.on_commit(lambda o=order: _emit_order_communication(o))
         return order
 
     @staticmethod
@@ -302,3 +304,16 @@ class OrderService:
             changed_by=employee,
             notes=notes or "",
         )
+
+
+def _emit_order_communication(order: Order) -> None:
+    from apps.communications.services.engine import emit_order_status_event
+
+    # recarrega com customer pra payload completo
+    order = (
+        Order.all_objects.select_related("customer", "tenant")
+        .filter(pk=order.pk)
+        .first()
+        or order
+    )
+    emit_order_status_event(order=order)

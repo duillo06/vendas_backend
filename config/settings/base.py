@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "apps.customers",
     "apps.orders",
     "apps.promotions",
+    "apps.communications",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +117,14 @@ CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localho
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "false").lower() == "true"
 CELERY_TASK_TRACK_STARTED = True
 CELERY_ACCEPT_CONTENT = ["json"]
+
+# Evolution hospedada pelo Food Service (modo “simples” / leigo)
+# Se ambas preenchidas, o comerciante pode conectar só com QR — sem URL/chave
+EVOLUTION_HOSTED_BASE_URL = os.environ.get("EVOLUTION_HOSTED_BASE_URL", "").rstrip("/")
+EVOLUTION_HOSTED_API_KEY = os.environ.get("EVOLUTION_HOSTED_API_KEY", "")
+# URL pública da nossa API (webhooks da Evolution → Food Service)
+PUBLIC_API_BASE_URL = os.environ.get("PUBLIC_API_BASE_URL", "").rstrip("/")
+
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE

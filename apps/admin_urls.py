@@ -19,6 +19,22 @@ from apps.companies.views.admin_views import (
 from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
 from apps.promotions.views.admin_views import AdminCampaignViewSet
+from apps.communications.views.admin_views import (
+    AlertsListView,
+    SituationBulkView,
+    SituationListView,
+    TemplateDetailView,
+    TemplatePreviewView,
+    TemplateTestView,
+    WhatsAppConnectView,
+    WhatsAppConnectionTestView,
+    WhatsAppDisconnectView,
+    WhatsAppHealthView,
+    WhatsAppOptionsView,
+    WhatsAppQrView,
+    WhatsAppStatsView,
+    WhatsAppStatusView,
+)
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),
@@ -153,5 +169,76 @@ urlpatterns = [
         "campaigns/<uuid:pk>/",
         AdminCampaignViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
         name="admin-campaign-detail",
+    ),
+    # Conexões / WhatsApp
+    path(
+        "communications/whatsapp/",
+        WhatsAppStatusView.as_view(),
+        name="admin-comms-whatsapp",
+    ),
+    path(
+        "communications/whatsapp/options/",
+        WhatsAppOptionsView.as_view(),
+        name="admin-comms-whatsapp-options",
+    ),
+    path(
+        "communications/whatsapp/connect/",
+        WhatsAppConnectView.as_view(),
+        name="admin-comms-whatsapp-connect",
+    ),
+    path(
+        "communications/whatsapp/qr/",
+        WhatsAppQrView.as_view(),
+        name="admin-comms-whatsapp-qr",
+    ),
+    path(
+        "communications/whatsapp/health/",
+        WhatsAppHealthView.as_view(),
+        name="admin-comms-whatsapp-health",
+    ),
+    path(
+        "communications/whatsapp/disconnect/",
+        WhatsAppDisconnectView.as_view(),
+        name="admin-comms-whatsapp-disconnect",
+    ),
+    path(
+        "communications/whatsapp/test/",
+        WhatsAppConnectionTestView.as_view(),
+        name="admin-comms-whatsapp-test",
+    ),
+    path(
+        "communications/whatsapp/stats/",
+        WhatsAppStatsView.as_view(),
+        name="admin-comms-whatsapp-stats",
+    ),
+    path(
+        "communications/situations/",
+        SituationListView.as_view(),
+        name="admin-comms-situations",
+    ),
+    path(
+        "communications/situations/bulk/",
+        SituationBulkView.as_view(),
+        name="admin-comms-situations-bulk",
+    ),
+    path(
+        "communications/templates/<str:event_key>/",
+        TemplateDetailView.as_view(),
+        name="admin-comms-template",
+    ),
+    path(
+        "communications/templates/<str:event_key>/preview/",
+        TemplatePreviewView.as_view(),
+        name="admin-comms-template-preview",
+    ),
+    path(
+        "communications/templates/<str:event_key>/test/",
+        TemplateTestView.as_view(),
+        name="admin-comms-template-test",
+    ),
+    path(
+        "communications/alerts/",
+        AlertsListView.as_view(),
+        name="admin-comms-alerts",
     ),
 ]
