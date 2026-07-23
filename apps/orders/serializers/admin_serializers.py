@@ -127,7 +127,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
                 {
                     "from_status": row.from_status,
                     "to_status": row.to_status,
-                    "changed_by": str(row.changed_by_id) if row.changed_by_id else None,
+                    # nome pra UI — UUID técnico nunca na tela
+                    "changed_by": (
+                        f"{row.changed_by.first_name} {row.changed_by.last_name}".strip()
+                        if row.changed_by_id
+                        else None
+                    )
+                    or None,
                     "notes": row.notes or None,
                     "created_at": row.created_at.isoformat().replace("+00:00", "Z"),
                 }
