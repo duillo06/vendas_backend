@@ -27,5 +27,7 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/foodservice/vendas_backend
+            # confs geradas na VPS travam o git pull — descarta antes
+            git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
             export DEPLOY_BRANCH=main
             bash deploy/scripts/remote-deploy.sh
