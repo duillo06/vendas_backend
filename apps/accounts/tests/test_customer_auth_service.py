@@ -6,9 +6,9 @@ from apps.customers.models import Customer
 
 
 @pytest.mark.django_db
-def test_customer_register_and_login(demo_company):
+def test_customer_register_and_login(demo_with_owner):
     result = CustomerAuthService.register(
-        tenant=demo_company,
+        tenant=demo_with_owner,
         phone="(11) 98888-7777",
         password="senha1234",
         first_name="Maria",
@@ -19,7 +19,7 @@ def test_customer_register_and_login(demo_company):
     assert result["access"]
 
     login = CustomerAuthService.login(
-        tenant=demo_company,
+        tenant=demo_with_owner,
         phone="(11) 98888-7777",
         password="senha1234",
     )
@@ -27,30 +27,30 @@ def test_customer_register_and_login(demo_company):
 
 
 @pytest.mark.django_db
-def test_customer_register_links_existing_guest(demo_company):
-    Customer.objects.create(
-        tenant=demo_company,
+def test_customer_register_links_existing_guest(demo_with_owner):
+    Customer.all_objects.create(
+        tenant=demo_with_owner,
         phone="(11) 97777-6666",
         first_name="João",
         last_name="",
     )
 
     result = CustomerAuthService.register(
-        tenant=demo_company,
+        tenant=demo_with_owner,
         phone="(11) 97777-6666",
         password="senha1234",
         first_name="João",
     )
 
-    customer = Customer.objects.get(tenant=demo_company, phone="(11) 97777-6666")
+    customer = Customer.all_objects.get(tenant=demo_with_owner, phone="(11) 97777-6666")
     assert customer.password_hash
     assert result["customer"]["has_account"] is True
 
 
 @pytest.mark.django_db
-def test_customer_login_invalid_password(demo_company):
+def test_customer_login_invalid_password(demo_with_owner):
     CustomerAuthService.register(
-        tenant=demo_company,
+        tenant=demo_with_owner,
         phone="(11) 96666-5555",
         password="senha1234",
         first_name="Ana",
@@ -58,7 +58,7 @@ def test_customer_login_invalid_password(demo_company):
 
     with pytest.raises(AuthenticationFailed):
         CustomerAuthService.login(
-            tenant=demo_company,
+            tenant=demo_with_owner,
             phone="(11) 96666-5555",
             password="errada",
         )

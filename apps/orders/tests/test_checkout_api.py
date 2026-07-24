@@ -77,7 +77,7 @@ def test_checkout_authenticated_customer_links_order(api_client, demo_store, x_b
     )
     customer_id = auth["customer"]["id"]
 
-    customer = Customer.objects.get(id=customer_id)
+    customer = Customer.all_objects.get(id=customer_id)
 
     CustomerAddress.objects.create(
         tenant=demo_store,
@@ -121,7 +121,7 @@ def test_checkout_authenticated_customer_links_order(api_client, demo_store, x_b
     )
 
     assert response.status_code == 201
-    order = Order.objects.get(id=response.json()["id"])
+    order = Order.all_objects.get(id=response.json()["id"])
     assert str(order.customer_id) == customer_id
 
 
@@ -153,7 +153,7 @@ def test_checkout_guest_rejects_customer_id(api_client, demo_store, x_burger_opt
     )
 
     assert response.status_code == 400
-    assert "customer_id" in response.json()
+    assert "customer_id" in response.json()["error"]["details"]
 
 
 @pytest.mark.django_db
