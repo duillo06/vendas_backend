@@ -44,8 +44,12 @@ docker compose -f docker-compose.dev.yml up -d
 export DJANGO_ENV=development
 python manage.py migrate
 
-# 6. Seed do tenant demo
+# 6. Seed do tenant demo (mínimo)
 python manage.py seed_dev
+
+# 6b. Seed pizzaria (recomendado pra começar) — pizzas + bebidas + fotos
+python manage.py seed_demo_pizzaria
+# sem baixar fotos: python manage.py seed_demo_pizzaria --skip-images
 
 # 7. Servidor (porta 8001 — não use 8000 se o projeto principal estiver rodando)
 python manage.py runserver 8001
@@ -53,11 +57,97 @@ python manage.py runserver 8001
 
 Health check: [http://localhost:8001/api/v1/health/](http://localhost:8001/api/v1/health/)
 
-## Deploy (produção)
+## Comandos do dia a dia
+
+Tudo a partir de `vendas_backend`, com o venv ativo (ou use `.venv/bin/python`).
+
+### Docker (Postgres 5433 + Redis 6380)
+
+```bash
+# subir infra
+docker compose -f docker-compose.dev.yml up -d
+
+# status / logs
+docker compose -f docker-compose.dev.yml ps
+docker compose -f docker-compose.dev.yml logs -f db
+
+# parar (mantém dados)
+docker compose -f docker-compose.dev.yml stop
+
+# parar e remover containers (mantém volume)
+docker compose -f docker-compose.dev.yml down
+
+# ZERAR O BANCO de verdade (apaga o volume pgdata)
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up -d
+export DJANGO_ENV=development
+python manage.py migrate
+python manage.py seed_demo_pizzaria
+```
+
+### Banco e seeds
+
+```bash
+export DJANGO_ENV=development
+
+# migrations
+python manage.py migrate
+
+# limpar só os dados (mantém tabelas)
+python manage.py flush --no-input
+
+# seed mínimo (tenant + cardápio curto)
+python manage.py seed_dev
+
+# seed pizzaria (recomendado) — pizzas + bebidas + fotos + tamanhos/bordas
+python manage.py seed_demo_pizzaria
+python manage.py seed_demo_pizzaria --skip-images
+python manage.py seed_demo_pizzaria --subdomain demo
+
+# seed rico genérico (várias categorias + fotos + campanhas)
+python manage.py seed_demo_rich
+python manage.py seed_demo_rich --skip-images
+```
+
+**Login demo:** `admin@demo.com` / `demo1234`
+
+### API
+
+```bash
+export DJANGO_ENV=development
+python manage.py runserver 8001
+```
+
+### Reset completo (receita rápida)
+
+```bash
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up -d
+export DJANGO_ENV=development
+python manage.py migrate
+python manage.py seed_demo_pizzaria
+python manage.py runserver 8001
+```
+
+## Deploy (produção / VPS Hostinger)
+
+Guia completo (Docker + Caddy TLS + deploy automático via Git):
+
+→ [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
+
+```bash
+# Na VPS, depois do bootstrap e do .env.production:
+cd /opt/foodservice/vendas_backend
+bash deploy/scripts/remote-deploy.sh
+```
+
+Push em `main` (backend ou frontend) dispara o deploy via GitHub Actions → SSH na VPS.
+
+## Deploy (produção) — atalho compose
 
 ```bash
 cp .env.production.example .env.production
-# edite secrets
+# edite secrets + BASE_DOMAIN
 docker compose -f deploy/docker-compose.prod.yml up -d --build
 ```
 

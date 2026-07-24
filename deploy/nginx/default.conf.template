@@ -1,12 +1,12 @@
-# Template Nginx — foodservice.app é trocado pelo remote-deploy.sh
+# Template Nginx — __BASE_DOMAIN__ é trocado pelo remote-deploy.sh
 upstream api_backend {
     server api:8000;
 }
 
-# Backoffice — admin.foodservice.app
+# Backoffice — admin.__BASE_DOMAIN__
 server {
     listen 80;
-    server_name admin.foodservice.app;
+    server_name admin.__BASE_DOMAIN__;
 
     root /usr/share/nginx/admin;
     index index.html;
@@ -31,10 +31,10 @@ server {
     }
 }
 
-# API dedicada — api.foodservice.app
+# API dedicada — api.__BASE_DOMAIN__
 server {
     listen 80;
-    server_name api.foodservice.app;
+    server_name api.__BASE_DOMAIN__;
 
     client_max_body_size 10M;
 
@@ -53,10 +53,10 @@ server {
     }
 }
 
-# Storefront por tenant — {tenant}.foodservice.app
+# Storefront por tenant — {tenant}.__BASE_DOMAIN__
 server {
     listen 80;
-    server_name ~^(?<tenant>[\w-]+)\.foodservice\.app$;
+    server_name ~^(?<tenant>[\w-]+)\.__BASE_DOMAIN_ESCAPED__$;
 
     root /usr/share/nginx/storefront;
     index index.html;

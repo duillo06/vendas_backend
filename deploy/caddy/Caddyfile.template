@@ -1,0 +1,29 @@
+# TLS automático via Let's Encrypt (HTTP-01) — sem plugin DNS.
+# Wildcard (*.dominio) exige DNS-01; no MVP liste os tenants abaixo.
+# __BASE_DOMAIN__ é trocado pelo remote-deploy.sh
+
+{
+	email admin@__BASE_DOMAIN__
+}
+
+api.__BASE_DOMAIN__ {
+	encode gzip
+	reverse_proxy nginx:80
+}
+
+admin.__BASE_DOMAIN__ {
+	encode gzip
+	reverse_proxy nginx:80
+}
+
+# Storefront demo — adicione um bloco por tenant novo
+demo.__BASE_DOMAIN__ {
+	encode gzip
+	reverse_proxy nginx:80
+}
+
+# Exemplo próximo cliente:
+# pizzaria-joao.__BASE_DOMAIN__ {
+# 	encode gzip
+# 	reverse_proxy nginx:80
+# }

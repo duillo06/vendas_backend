@@ -1,62 +1,159 @@
-# Deploy MVP — Sprint 10
+# Deploy — VPS Hostinger + GitHub Actions
 
-Guia para colocar o Food Service em produção (VPS/cloud) com Docker.
+Guia para subir o Food Service em produção (Docker) com **deploy automático via Git** (`push` em `main`).
 
 ## Arquitetura
 
 ```
-                    ┌─────────────────────────────────────┐
-                    │           Nginx (porta 80/443)       │
-                    │  admin.* → backoffice SPA            │
-                    │  api.*   → Django API                │
-                    │  {tenant}.* → storefront + /api/     │
-                    └──────────────┬──────────────────────┘
-                                   │
-              ┌────────────────────┼────────────────────┐
-              ▼                    ▼                    ▼
-         Gunicorn              PostgreSQL            Redis
-         (api)                 (db)                  (cache + Celery)
-              │
-              ▼
-         Celery worker (e-mails de confirmação)
+Internet
+   │
+   ▼
+┌──────────────────────────────────────────┐
+│  Caddy (:80/:443)  — TLS Let's Encrypt   │
+│  api.* / admin.* / {tenant}.*            │
+└──────────────────┬───────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────┐
+│  Nginx (interno) — SPA storefront/admin  │
+│  + proxy /api → Gunicorn                 │
+└──────────────────┬───────────────────────┘
+                   │
+     ┌─────────────┼─────────────┐
+     ▼             ▼             ▼
+  Gunicorn      Postgres       Redis
+  + Celery
 ```
 
-## Pré-requisitos no servidor
+## Pré-requisitos
 
-- Docker 24+ e Docker Compose v2
-- Domínio `foodservice.app` com DNS:
-  - `A` → IP do servidor para `api`, `admin`
-  - `A` ou `CNAME` wildcard `*.foodservice.app` → IP do servidor
-- TLS: recomendado **Caddy** ou **Certbot** na frente do Nginx (ou Traefik)
+- VPS Hostinger (Ubuntu 22.04/24.04) com acesso SSH
+- Docker 24+ (instalado pelo bootstrap)
+- Domínio com DNS apontando para o IP da VPS:
+  - `A` → `api`, `admin`, `demo` (e cada tenant novo)
+  - Opcional depois: wildcard `*.seudominio.com` (precisa DNS-01)
+- Repos GitHub: `vendas_backend` e `vendas_frontend` (privados ou públicos)
 
-## Estrutura de repositórios no servidor
+## 1. Bootstrap da VPS (uma vez)
+
+No servidor (SSH como root):
 
 ```bash
-~/foodservice/
-├── vendas_backend/
-└── vendas_frontend/    # sibling — necessário para build do Nginx
+# cole o script ou copie do repo depois do clone
+curl -fsSL https://get.docker.com | sh   # se ainda não tiver Docker
+mkdir -p /opt/foodservice && cd /opt/foodservice
+
+git clone git@github.com:SEU_USER/vendas_backend.git vendas_backend
+git clone git@github.com:SEU_USER/vendas_frontend.git vendas_frontend
+
+# OU bootstrap completo (firewall + docker):
+# bash vendas_backend/deploy/scripts/vps-bootstrap.sh
 ```
 
-## 1. Configurar variáveis
+Deploy key (recomendado): crie uma chave SSH só para o servidor e adicione como **Deploy key** (read) nos dois repos GitHub.
 
 ```bash
-cd ~/foodservice/vendas_backend
+ssh-keygen -t ed25519 -C "vps-foodservice" -f ~/.ssh/foodservice_deploy -N ""
+# publique ~/.ssh/foodservice_deploy.pub em cada repo → Settings → Deploy keys
+```
+
+`~/.ssh/config` no servidor:
+
+```
+Host github.com
+  IdentityFile ~/.ssh/foodservice_deploy
+  IdentitiesOnly yes
+```
+
+## 2. Variáveis de produção
+
+```bash
+cd /opt/foodservice/vendas_backend
 cp .env.production.example .env.production
-# Edite SECRET_KEY, POSTGRES_PASSWORD, e-mail SMTP, etc.
+nano .env.production
 ```
 
-## 2. Subir stack
+Campos críticos:
+
+| Variável | O quê |
+|----------|--------|
+| `BASE_DOMAIN` | domínio raiz (ex.: `meusite.com.br`) |
+| `SECRET_KEY` | string longa aleatória |
+| `POSTGRES_PASSWORD` | senha forte |
+| `ALLOWED_HOSTS` | `.dominio`, `api.`, `admin.`, `demo.` |
+| `CORS_ALLOWED_ORIGINS` | URLs `https://…` |
+| `VITE_API_BASE_URL` | `https://api.DOMINIO/api/v1` |
+| `STOREFRONT_BASE_DOMAIN` | mesmo que `BASE_DOMAIN` |
+
+Troque `foodservice.app` pelo **seu domínio** em todos os campos.
+
+## 3. DNS na Hostinger
+
+No painel DNS do domínio:
+
+| Tipo | Nome | Valor |
+|------|------|--------|
+| A | `api` | IP da VPS |
+| A | `admin` | IP da VPS |
+| A | `demo` | IP da VPS |
+| A | `@` (opcional) | IP da VPS |
+
+Cada tenant novo (ex.: `pizzaria-joao`) precisa de um registro `A` **e** um bloco no `deploy/caddy/Caddyfile.template`.
+
+## 4. Primeiro deploy (manual)
 
 ```bash
-cd ~/foodservice/vendas_backend
-docker compose -f deploy/docker-compose.prod.yml up -d --build
+cd /opt/foodservice/vendas_backend
+bash deploy/scripts/remote-deploy.sh
 ```
 
-Serviços: `db`, `redis`, `api`, `celery`, `nginx`.
+Isso:
 
-## 3. Onboarding do cliente real
+1. `git pull` backend + frontend (`main`)
+2. Gera Nginx + Caddy com o `BASE_DOMAIN`
+3. `docker compose up -d --build`
+4. Roda migrations
+
+Confira:
 
 ```bash
+docker compose -f deploy/docker-compose.prod.yml ps
+curl -I https://api.SEU_DOMINIO/api/v1/health/
+```
+
+## 5. Deploy automático via Git
+
+### Secrets no GitHub
+
+Nos **dois** repositórios → Settings → Environments → **production**:
+
+| Secret | Valor |
+|--------|--------|
+| `PRODUCTION_HOST` | IP da VPS |
+| `PRODUCTION_USER` | `root` (ou user com Docker) |
+| `PRODUCTION_SSH_KEY` | chave **privada** que entra na VPS |
+
+Na VPS, a chave pública correspondente deve estar em `~/.ssh/authorized_keys`.
+
+### Workflows
+
+| Repo | Arquivo | Trigger |
+|------|---------|---------|
+| backend | `.github/workflows/deploy-production.yml` | push `main` |
+| frontend | `.github/workflows/deploy-production.yml` | push `main` |
+
+Fluxo: `git push origin main` → Action SSH → `/opt/foodservice/vendas_backend/deploy/scripts/remote-deploy.sh`.
+
+Também dá para rodar manualmente: Actions → Deploy Production → Run workflow.
+
+### Staging (opcional)
+
+`deploy-staging.yml` no backend ainda aponta para branch `develop` e environment `staging` (`STAGING_*`).
+
+## 6. Onboarding do cliente
+
+```bash
+cd /opt/foodservice/vendas_backend
 docker compose -f deploy/docker-compose.prod.yml exec api python manage.py onboard_tenant \
   --trade-name "Pizzaria do João" \
   --subdomain pizzaria-joao \
@@ -66,63 +163,75 @@ docker compose -f deploy/docker-compose.prod.yml exec api python manage.py onboa
   --owner-password "senha-inicial-segura"
 ```
 
-Opcional (staging): adicione `--seed-catalog` para cardápio demo.
+Depois:
 
-Depois cadastre o cardápio real pelo backoffice em `https://admin.foodservice.app`.
+1. DNS `A` → `pizzaria-joao.SEU_DOMINIO`
+2. Descomente/adicione o bloco no `deploy/caddy/Caddyfile.template`
+3. Rode de novo o `remote-deploy.sh` (ou push em `main`)
 
-## 4. TLS (Let's Encrypt)
-
-Exemplo com Certbot + Nginx (ajuste paths):
+## 7. Comandos úteis na VPS
 
 ```bash
-sudo certbot certonly --nginx -d foodservice.app -d '*.foodservice.app' -d api.foodservice.app -d admin.foodservice.app
+cd /opt/foodservice/vendas_backend
+
+# status
+docker compose -f deploy/docker-compose.prod.yml ps
+
+# logs
+docker compose -f deploy/docker-compose.prod.yml logs -f --tail=100 api
+docker compose -f deploy/docker-compose.prod.yml logs -f --tail=50 caddy
+
+# redeploy manual
+bash deploy/scripts/remote-deploy.sh
+
+# backup Postgres
+docker compose -f deploy/docker-compose.prod.yml exec -T db \
+  pg_dump -U foodservice foodservice > backup-$(date +%F).sql
 ```
 
-Wildcard exige validação DNS (`dns-01`). Para MVP sem wildcard, emita certificados por subdomínio.
+## 8. Monitoramento e e-mail
 
-## 5. CI/CD
-
-| Workflow | Repo | Trigger |
-|----------|------|---------|
-| `ci.yml` | ambos | PR + push `main` — lint, testes, build |
-| `docker.yml` | ambos | build das imagens Docker |
-| `deploy-staging.yml` | backend | push `develop` — deploy SSH |
-
-Secrets necessários no GitHub (environment `staging`):
-
-- `STAGING_HOST`
-- `STAGING_USER`
-- `STAGING_SSH_KEY`
-
-## 6. Monitoramento
-
-Configure no `.env.production`:
+No `.env.production`:
 
 ```env
 SENTRY_DSN=https://...@sentry.io/...
 SENTRY_ENVIRONMENT=production
+# SMTP (SendGrid, Amazon SES, etc.)
 ```
 
-## 7. Backup PostgreSQL
-
-```bash
-docker compose -f deploy/docker-compose.prod.yml exec db \
-  pg_dump -U foodservice foodservice > backup-$(date +%F).sql
-```
-
-Agende via cron diário.
-
-## 8. Checklist E2E manual
+## 9. Checklist go-live
 
 Ver [`../../vendas_frontend/docs/14-checklist-e2e-go-live.md`](../../vendas_frontend/docs/14-checklist-e2e-go-live.md).
 
-## URLs de produção
+## URLs
 
 | App | URL |
 |-----|-----|
-| Storefront tenant | `https://{subdomain}.foodservice.app` |
-| Backoffice | `https://admin.foodservice.app` |
-| API | `https://api.foodservice.app/api/v1` |
+| Storefront tenant | `https://{subdomain}.SEU_DOMINIO` |
+| Backoffice | `https://admin.SEU_DOMINIO` |
+| API | `https://api.SEU_DOMINIO/api/v1` |
+
+## Estrutura dos arquivos de deploy
+
+```text
+vendas_backend/deploy/
+├── docker-compose.prod.yml
+├── scripts/
+│   ├── vps-bootstrap.sh      # 1ª vez na VPS
+│   ├── remote-deploy.sh      # pull + build + up
+│   └── entrypoint.sh         # migrate + collectstatic na API
+├── nginx/
+│   ├── default.conf.template
+│   └── default.conf          # gerado
+├── caddy/
+│   ├── Caddyfile.template
+│   └── Caddyfile             # gerado
+└── DEPLOY.md                 # este arquivo
+
+vendas_frontend/deploy/
+├── Dockerfile                # build storefront + admin
+└── README.md
+```
 
 ## Desenvolvimento local (referência)
 
