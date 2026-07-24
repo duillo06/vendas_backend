@@ -29,6 +29,8 @@ BASE_DOMAIN="${BASE_DOMAIN:-foodservice.app}"
 echo "==> Domínio base: $BASE_DOMAIN"
 
 echo "==> Git pull backend ($BRANCH)"
+# confs geradas na VPS não podem bloquear o pull
+git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
 git fetch origin
 git checkout "$BRANCH"
 git pull --ff-only origin "$BRANCH"
