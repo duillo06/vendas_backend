@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -102,8 +103,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.handlers.custom_exception_handler",
 }
-
-from corsheaders.defaults import default_headers
 
 CORS_ALLOWED_ORIGINS: list[str] = []
 CORS_ALLOW_CREDENTIALS = True

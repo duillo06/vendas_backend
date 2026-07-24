@@ -9,10 +9,10 @@ from django.utils import timezone
 
 from apps.communications.domain.catalog import PREVIEW_SAMPLES, SITUATION_CATALOG
 from apps.communications.domain.enums import (
+    ORDER_STATUS_TO_EVENT,
     Channel,
     ConnectionStatus,
     DispatchStatus,
-    ORDER_STATUS_TO_EVENT,
 )
 from apps.communications.models import (
     CommunicationConnection,
@@ -123,9 +123,9 @@ class CommunicationEngine:
         body: str,
         to_e164: str | None = None,
     ) -> MessageDispatch:
-        from apps.communications.infrastructure.providers.registry import get_provider
         from apps.communications.domain.catalog import human_error
         from apps.communications.infrastructure.providers.evolution.client import EvolutionHttpError
+        from apps.communications.infrastructure.providers.registry import get_provider
 
         recipient = (to_e164 or connection.phone_e164 or "").strip()
         # se conectou mas o número ainda não gravou, busca na Evolution

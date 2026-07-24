@@ -158,8 +158,8 @@ def test_resolver_falls_back_to_category(inherit_setup):
 @pytest.mark.django_db
 def test_calculator_uses_category_price_without_product_row(inherit_setup):
     """Sem preço no produto, engine usa o da categoria (não o legado 99)."""
-    from apps.catalog.models import ProductOptionGroup
     from apps.catalog.domain.selection_types import SelectedOptionEntry
+    from apps.catalog.models import ProductOptionGroup
 
     category = inherit_setup["category"]
     product = inherit_setup["product"]

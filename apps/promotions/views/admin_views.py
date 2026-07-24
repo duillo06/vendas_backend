@@ -1,13 +1,12 @@
 from rest_framework import status, viewsets
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.accounts.authentication import EmployeeJWTAuthentication
 from apps.accounts.permissions import IsEmployeeAuthenticated
+from apps.promotions.domain.exceptions import InvalidCampaignError
 from apps.promotions.models import Campaign
 from apps.promotions.serializers import CampaignAdminSerializer, CampaignWriteSerializer
 from apps.promotions.services.campaign_service import CampaignService
-from apps.promotions.domain.exceptions import InvalidCampaignError
 from core.permissions.rbac import HasPermission
 
 

@@ -4,11 +4,11 @@ from django.utils import timezone
 
 from apps.communications.domain.catalog import SITUATION_CATALOG, human_error
 from apps.communications.domain.enums import (
+    PHASE1_EVENT_KEYS,
     AlertSeverity,
     Channel,
     ConnectionRole,
     ConnectionStatus,
-    PHASE1_EVENT_KEYS,
 )
 from apps.communications.models import (
     CommunicationConnection,

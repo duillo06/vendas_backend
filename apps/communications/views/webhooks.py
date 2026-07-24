@@ -1,8 +1,8 @@
 import logging
 
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework.views import APIView
 
 from apps.communications.infrastructure.providers.registry import get_provider

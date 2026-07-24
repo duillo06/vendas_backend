@@ -1,5 +1,5 @@
-from decimal import Decimal
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 from django.test import override_settings

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 import os
-import uuid
 import urllib.error
 import urllib.request
+import uuid
+from collections.abc import Callable
 from datetime import timedelta
 from decimal import Decimal
-from typing import Callable
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage

@@ -5,18 +5,25 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
+from apps.catalog.services.option_stock_service import OptionStockService
 from apps.companies.models import Company
+from apps.companies.services.geo_service import cities_match, normalize_state
 from apps.companies.services.settings_service import SettingsService
 from apps.customers.services.customer_service import CustomerService
 from apps.orders.domain.enums import (
+    VALID_TRANSITIONS,
     DeliveryType,
     OrderSource,
     OrderStatus,
     PaymentMethod,
     PaymentStatus,
-    VALID_TRANSITIONS,
 )
-from apps.orders.domain.exceptions import EmptyCartError, InvalidOrderTransition, MinOrderValueError, OutOfDeliveryAreaError
+from apps.orders.domain.exceptions import (
+    EmptyCartError,
+    InvalidOrderTransition,
+    MinOrderValueError,
+    OutOfDeliveryAreaError,
+)
 from apps.orders.models import (
     Order,
     OrderItem,
@@ -26,8 +33,6 @@ from apps.orders.models import (
     OrderStatusHistory,
 )
 from apps.orders.services.cart_validation_service import CartValidationService
-from apps.catalog.services.option_stock_service import OptionStockService
-from apps.companies.services.geo_service import cities_match, normalize_state
 from core.utils.money import round_money
 
 

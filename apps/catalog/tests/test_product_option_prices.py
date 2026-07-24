@@ -137,7 +137,6 @@ def test_public_product_detail_uses_product_price(api_client, price_setup):
 
 @pytest.mark.django_db
 def test_admin_patch_option_prices(api_client, price_setup):
-    company = price_setup["company"]
     product = price_setup["product_a"]
     grande = price_setup["grande"]
 

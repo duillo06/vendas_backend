@@ -1,4 +1,3 @@
-from django.db.models import F
 
 from apps.catalog.models import Option
 

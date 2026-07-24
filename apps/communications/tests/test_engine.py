@@ -1,14 +1,14 @@
 import pytest
 
 from apps.communications.domain.catalog import SITUATION_CATALOG
+from apps.communications.domain.enums import ConnectionStatus, DispatchStatus
+from apps.communications.domain.exceptions import TemplateValidationError
 from apps.communications.infrastructure.providers._fake.adapter import FakeWhatsAppAdapter
 from apps.communications.infrastructure.providers.registry import register_provider
+from apps.communications.models import MessageDispatch
 from apps.communications.services.connection_service import ConnectionService
 from apps.communications.services.engine import CommunicationEngine, CommunicationEvent
 from apps.communications.services.renderer import render, validate_body
-from apps.communications.domain.exceptions import TemplateValidationError
-from apps.communications.domain.enums import ConnectionStatus, DispatchStatus
-from apps.communications.models import MessageDispatch
 
 
 @pytest.fixture

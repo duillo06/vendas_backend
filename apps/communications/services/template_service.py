@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.db import transaction
 
 from apps.communications.domain.catalog import SITUATION_CATALOG
-from apps.communications.domain.enums import Channel, PHASE1_EVENT_KEYS
+from apps.communications.domain.enums import PHASE1_EVENT_KEYS, Channel
 from apps.communications.domain.exceptions import TemplateValidationError
 from apps.communications.models import MessageTemplate, SituationSetting
 from apps.communications.services.helpers import ensure_templates_and_situations

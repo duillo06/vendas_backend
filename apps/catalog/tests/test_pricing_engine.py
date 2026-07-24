@@ -4,8 +4,8 @@ import pytest
 
 from apps.catalog.domain.enums import OptionPriceType
 from apps.catalog.models import Option, OptionGroup
-from apps.catalog.services.pricing_engine import PricingEngine
 from apps.catalog.services.price_calculator import PriceCalculator
+from apps.catalog.services.pricing_engine import PricingEngine
 from apps.catalog.services.product_service import ProductService
 from apps.companies.services.onboarding_service import OnboardingService
 

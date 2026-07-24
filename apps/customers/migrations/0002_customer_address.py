@@ -1,7 +1,8 @@
 # Generated manually for Sprint 11
 
-import django.db.models.deletion
 import uuid
+
+import django.db.models.deletion
 from django.db import migrations, models
 
 

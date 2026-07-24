@@ -6,7 +6,7 @@ Não rematerializa produtos existentes (prompt de aplicação = Fase 3).
 
 from django.db import transaction
 
-from apps.catalog.domain.enums import CatalogKind, PRODUCT_PRICE_KINDS
+from apps.catalog.domain.enums import PRODUCT_PRICE_KINDS, CatalogKind
 from apps.catalog.models import (
     Category,
     CategoryCapability,

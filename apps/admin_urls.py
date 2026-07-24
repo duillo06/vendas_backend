@@ -6,6 +6,22 @@ from apps.catalog.views.admin_views import (
     AdminOptionGroupViewSet,
     AdminProductViewSet,
 )
+from apps.communications.views.admin_views import (
+    AlertsListView,
+    SituationBulkView,
+    SituationListView,
+    TemplateDetailView,
+    TemplatePreviewView,
+    TemplateTestView,
+    WhatsAppConnectionTestView,
+    WhatsAppConnectView,
+    WhatsAppDisconnectView,
+    WhatsAppHealthView,
+    WhatsAppOptionsView,
+    WhatsAppQrView,
+    WhatsAppStatsView,
+    WhatsAppStatusView,
+)
 from apps.companies.views.admin_views import (
     AdminAiSuggestionsStubView,
     AdminCoverUploadView,
@@ -19,22 +35,6 @@ from apps.companies.views.admin_views import (
 from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
 from apps.promotions.views.admin_views import AdminCampaignViewSet
-from apps.communications.views.admin_views import (
-    AlertsListView,
-    SituationBulkView,
-    SituationListView,
-    TemplateDetailView,
-    TemplatePreviewView,
-    TemplateTestView,
-    WhatsAppConnectView,
-    WhatsAppConnectionTestView,
-    WhatsAppDisconnectView,
-    WhatsAppHealthView,
-    WhatsAppOptionsView,
-    WhatsAppQrView,
-    WhatsAppStatsView,
-    WhatsAppStatusView,
-)
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),

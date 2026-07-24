@@ -12,7 +12,7 @@ from apps.communications.domain.exceptions import (
     CommunicationError,
     TemplateValidationError,
 )
-from apps.communications.models import MessageDispatch, MerchantAlert
+from apps.communications.models import MerchantAlert, MessageDispatch
 from apps.communications.serializers import (
     ConnectionTestSerializer,
     ConnectWhatsAppSerializer,

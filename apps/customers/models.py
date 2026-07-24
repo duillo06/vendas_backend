@@ -1,7 +1,7 @@
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 
-from core.models.base import BaseModel, SoftDeleteModel
+from core.models.base import SoftDeleteModel
 from core.models.tenant_model import TenantAwareModel
 
 

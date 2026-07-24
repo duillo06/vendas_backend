@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from datetime import timedelta
 from decimal import Decimal
-from typing import Callable
 
 from django.core.files.base import ContentFile
 from django.db import transaction
@@ -353,9 +353,10 @@ def _set_category_cover(category: Category, url: str, log: Callable[[str], None]
         return
     data, ctype = downloaded
     file = _as_image_file(data, ctype, category.slug)
-    from django.core.files.storage import default_storage
     import os
     import uuid
+
+    from django.core.files.storage import default_storage
 
     ext = os.path.splitext(file.name)[1] or ".jpg"
     path = f"{category.tenant_id}/categories/{uuid.uuid4()}{ext}"
