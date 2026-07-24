@@ -10,7 +10,7 @@ server {
     server_name admin.__BASE_DOMAIN__;
 
     root /usr/share/nginx/admin;
-    index index.html;
+    index index.html index.admin.html;
 
     location /api/ {
         proxy_pass http://api_backend;

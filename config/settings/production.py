@@ -1,4 +1,5 @@
 import os
+import re
 
 from .base import *  # noqa: F403
 
@@ -16,8 +17,13 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+# Subdomínios do storefront (tenants) — usa STOREFRONT_BASE_DOMAIN / BASE_DOMAIN
+_storefront_domain = os.environ.get(
+    "STOREFRONT_BASE_DOMAIN",
+    os.environ.get("BASE_DOMAIN", "foodservice.app"),
+)
 CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://[\w-]+\.foodservice\.app$",
+    rf"^https://[\w-]+\.{re.escape(_storefront_domain)}$",
 ]
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
