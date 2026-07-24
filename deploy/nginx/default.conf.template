@@ -1,4 +1,5 @@
 # Template Nginx — __BASE_DOMAIN__ é trocado pelo remote-deploy.sh
+# Caddy termina TLS e manda X-Forwarded-Proto; não use $scheme (seria http interno).
 upstream api_backend {
     server api:8000;
 }
@@ -16,7 +17,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         client_max_body_size 10M;
     }
 
@@ -49,7 +50,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
     }
 }
 
@@ -66,7 +67,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         client_max_body_size 10M;
     }
 
