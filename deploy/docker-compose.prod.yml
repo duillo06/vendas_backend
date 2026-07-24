@@ -77,8 +77,9 @@ services:
       context: ../../vendas_frontend
       dockerfile: deploy/Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.foodservice.app/api/v1}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
         VITE_DEFAULT_TENANT_SUBDOMAIN: ${VITE_DEFAULT_TENANT_SUBDOMAIN:-demo}
+        VITE_STOREFRONT_BASE_DOMAIN: ${BASE_DOMAIN:-foodservice.app}
     restart: unless-stopped
     expose:
       - "80"
