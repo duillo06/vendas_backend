@@ -60,6 +60,14 @@ class CompanySettings(TenantAwareModel):
     # cidade/UF onde a loja entrega — vazio = ainda não restringe
     delivery_city = models.CharField(max_length=100, blank=True, default="")
     delivery_state = models.CharField(max_length=2, blank=True, default="")
+    delivery_city_ref = models.ForeignKey(
+        "locations.City",
+        on_delete=models.PROTECT,
+        related_name="company_settings",
+        db_column="delivery_city_id",
+        null=True,
+        blank=True,
+    )
     theme = models.JSONField(blank=True, null=True)
     notification_settings = models.JSONField(blank=True, null=True)
     # Fase 4 — progresso do assistente de 1ª configuração

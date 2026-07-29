@@ -30,6 +30,10 @@ class CompanyAdminService:
             "accepts_pickup": settings.accepts_pickup,
             "delivery_city": settings.delivery_city or "",
             "delivery_state": settings.delivery_state or "",
+            "delivery_city_id": settings.delivery_city_ref_id,
+            "delivery_state_id": (
+                settings.delivery_city_ref.state_id if settings.delivery_city_ref else None
+            ),
             "is_open": settings.is_open,
             "auto_close_outside_hours": settings.auto_close_outside_hours,
             "payment_methods": settings.payment_methods,

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.customers.models import Customer, CustomerAddress
+from apps.locations.services import LocationCatalogService
 from core.serializers.fields import GeoCoordinateField
 
 
@@ -31,6 +32,9 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 
 class CustomerAddressSerializer(serializers.ModelSerializer):
+    city_id = serializers.IntegerField(source="city_ref_id", read_only=True)
+    state_id = serializers.IntegerField(source="city_ref.state_id", read_only=True)
+
     class Meta:
         model = CustomerAddress
         fields = [
@@ -42,6 +46,8 @@ class CustomerAddressSerializer(serializers.ModelSerializer):
             "neighborhood",
             "city",
             "state",
+            "city_id",
+            "state_id",
             "zip_code",
             "reference",
             "latitude",
@@ -70,11 +76,42 @@ class CustomerAddressWriteSerializer(serializers.Serializer):
     neighborhood = serializers.CharField(max_length=100)
     city = serializers.CharField(max_length=100)
     state = serializers.CharField(max_length=2)
+    city_id = serializers.IntegerField(required=False, allow_null=True)
+    state_id = serializers.IntegerField(required=False, allow_null=True)
     zip_code = serializers.CharField(max_length=9, required=False, allow_blank=True, default="")
     reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
     latitude = GeoCoordinateField()
     longitude = GeoCoordinateField()
     is_default = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        has_city_id = "city_id" in attrs
+        city_id = attrs.pop("city_id", None)
+        state_id = attrs.pop("state_id", None)
+        if has_city_id and city_id is None:
+            attrs["city_ref"] = None
+            return attrs
+        if city_id is None:
+            city_name = attrs.get("city")
+            state_acronym = attrs.get("state")
+            if city_name and state_acronym:
+                city = LocationCatalogService.find_city(
+                    city_name=city_name,
+                    state_acronym=state_acronym,
+                )
+                if city:
+                    attrs["city"] = city.name
+                    attrs["state"] = city.state.acronym
+                attrs["city_ref"] = city
+            elif "city" in attrs or "state" in attrs:
+                attrs["city_ref"] = None
+            return attrs
+
+        city = LocationCatalogService.get_city(city_id=city_id, state_id=state_id)
+        attrs["city"] = city.name
+        attrs["state"] = city.state.acronym
+        attrs["city_ref"] = city
+        return attrs
 
 
 class CustomerAdminListSerializer(serializers.ModelSerializer):

@@ -1,6 +1,7 @@
 
 from rest_framework import serializers
 
+from apps.locations.services import LocationCatalogService
 from apps.orders.domain.enums import DeliveryType, PaymentMethod
 from apps.orders.models import Order
 from core.serializers.fields import GeoCoordinateField
@@ -13,10 +14,25 @@ class CheckoutAddressSerializer(serializers.Serializer):
     neighborhood = serializers.CharField(max_length=100)
     city = serializers.CharField(max_length=100)
     state = serializers.CharField(max_length=2)
+    city_id = serializers.IntegerField(required=False, allow_null=True)
+    state_id = serializers.IntegerField(required=False, allow_null=True)
     zip_code = serializers.CharField(max_length=9, required=False, allow_blank=True, default="")
     reference = serializers.CharField(max_length=255, required=False, allow_blank=True)
     latitude = GeoCoordinateField()
     longitude = GeoCoordinateField()
+
+    def validate(self, attrs):
+        city_id = attrs.get("city_id")
+        state_id = attrs.get("state_id")
+        if city_id is None:
+            return attrs
+
+        city = LocationCatalogService.get_city(city_id=city_id, state_id=state_id)
+        attrs["city"] = city.name
+        attrs["state"] = city.state.acronym
+        attrs["city_id"] = city.id
+        attrs["state_id"] = city.state_id
+        return attrs
 
 
 class CheckoutItemOptionSerializer(serializers.Serializer):

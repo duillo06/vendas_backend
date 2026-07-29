@@ -8,7 +8,9 @@ class CustomerAddressService:
     @staticmethod
     def list_for_customer(*, customer: Customer) -> list[CustomerAddress]:
         return list(
-            CustomerAddress.objects.filter(customer=customer).order_by("-is_default", "-created_at"),
+            CustomerAddress.objects.filter(customer=customer)
+            .select_related("city_ref__state")
+            .order_by("-is_default", "-created_at"),
         )
 
     @staticmethod # indica que o método é estático, ou seja, não precisa de uma instância da classe para ser chamado
@@ -32,6 +34,7 @@ class CustomerAddressService:
             neighborhood=data["neighborhood"],
             city=data["city"],
             state=data["state"],
+            city_ref=data.get("city_ref"),
             zip_code=data.get("zip_code") or "",
             reference=data.get("reference") or "",
             latitude=data.get("latitude"),
@@ -50,6 +53,7 @@ class CustomerAddressService:
             "neighborhood",
             "city",
             "state",
+            "city_ref",
             "zip_code",
             "reference",
             "latitude",
@@ -57,7 +61,7 @@ class CustomerAddressService:
         ):
             if field in data:
                 value = data[field]
-                if field in ("latitude", "longitude"):
+                if field in ("latitude", "longitude", "city_ref"):
                     setattr(address, field, value)
                 else:
                     setattr(address, field, value or "")

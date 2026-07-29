@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "core",
+    "apps.locations",
     "apps.companies",
     "apps.accounts",
     "apps.catalog",

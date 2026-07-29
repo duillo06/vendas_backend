@@ -77,6 +77,9 @@ echo "==> Docker compose up --build"
 echo "==> Migrate (garantia — entrypoint também migra)"
 "${COMPOSE[@]}" exec -T api python manage.py migrate --noinput
 
+echo "==> Catálogo de estados e cidades"
+"${COMPOSE[@]}" exec -T api python manage.py seed_locations --if-empty
+
 echo "==> Health"
 sleep 2
 curl -fsS "http://127.0.0.1:80/api/v1/health/" >/dev/null 2>&1 \

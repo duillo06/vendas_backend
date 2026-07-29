@@ -46,6 +46,17 @@ class OrderService:
         if not address:
             return
 
+        if settings.delivery_city_ref_id:
+            if not address.get("city_id"):
+                raise OutOfDeliveryAreaError(
+                    "Escolha novamente a cidade do endereço para continuar."
+                )
+            if int(address["city_id"]) == settings.delivery_city_ref_id:
+                return
+            raise OutOfDeliveryAreaError(
+                f"Nossa entrega é só em {store_city} ({store_state})."
+            )
+
         city = (address.get("city") or "").strip()
         state = normalize_state(address.get("state") or "")
         if cities_match(city, store_city) and state == store_state:

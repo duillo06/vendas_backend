@@ -7,6 +7,8 @@ from urllib.request import Request, urlopen
 
 from rest_framework.exceptions import ValidationError
 
+from apps.locations.services import LocationCatalogService
+
 logger = logging.getLogger(__name__)
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
@@ -125,4 +127,15 @@ class GeoService:
                 {"detail": "Não encontramos cidade e estado para essa localização"}
             )
 
-        return {"city": city, "state": state}
+        canonical_city = LocationCatalogService.find_city(
+            city_name=city,
+            state_acronym=state,
+        )
+        if canonical_city:
+            return {
+                "city": canonical_city.name,
+                "state": canonical_city.state.acronym,
+                "city_id": canonical_city.id,
+                "state_id": canonical_city.state_id,
+            }
+        return {"city": city, "state": state, "city_id": None, "state_id": None}

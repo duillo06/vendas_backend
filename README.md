@@ -43,6 +43,7 @@ docker compose -f docker-compose.dev.yml up -d
 # 5. Migrations
 export DJANGO_ENV=development
 python manage.py migrate
+python manage.py seed_locations  # estados e cidades oficiais do IBGE
 
 # 6. Seed do tenant demo (mínimo)
 python manage.py seed_dev
@@ -92,6 +93,9 @@ export DJANGO_ENV=development
 
 # migrations
 python manage.py migrate
+
+# catálogo oficial usado nos selects de estado e cidade
+python manage.py seed_locations
 
 # limpar só os dados (mantém tabelas)
 python manage.py flush --no-input
