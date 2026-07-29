@@ -1,3 +1,4 @@
+import gzip
 import json
 import unicodedata
 from urllib.error import HTTPError, URLError
@@ -59,12 +60,20 @@ class LocationCatalogService:
     def _fetch(path: str) -> list[dict]:
         request = Request(
             f"{IBGE_BASE_URL}/{path}",
-            headers={"User-Agent": IBGE_USER_AGENT, "Accept": "application/json"},
+            headers={
+                "User-Agent": IBGE_USER_AGENT,
+                "Accept": "application/json",
+                # sem isso o IBGE às vezes manda gzip e o read() vem binário
+                "Accept-Encoding": "identity",
+            },
         )
         try:
             with urlopen(request, timeout=IBGE_TIMEOUT_SECONDS) as response:
-                return json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, ValueError) as exc:
+                raw = response.read()
+                if response.headers.get("Content-Encoding") == "gzip" or raw[:2] == b"\x1f\x8b":
+                    raw = gzip.decompress(raw)
+                return json.loads(raw.decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
             raise ValidationError(f"Não foi possível consultar o IBGE: {exc}") from exc
 
     @staticmethod
