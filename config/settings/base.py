@@ -110,6 +110,7 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     *default_headers,
     "x-tenant-id",
+    "x-tenant-subdomain",
 ]
 
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6380/1")

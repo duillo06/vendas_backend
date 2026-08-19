@@ -63,6 +63,7 @@ class ProductListPublicSerializer(serializers.ModelSerializer):
             "is_available",
             "tags",
             "has_options",
+            "max_quantity_per_order",
         ]
 
     def get_category(self, obj):
@@ -204,6 +205,7 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
             "compare_price",
             "is_available",
             "prep_time",
+            "max_quantity_per_order",
             "tags",
             "images",
             "option_groups",

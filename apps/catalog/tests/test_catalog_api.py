@@ -43,6 +43,7 @@ def test_public_product_detail_with_options(api_client, demo_catalog):
     assert response.status_code == 200
     body = response.json()
     assert body["slug"] == "x-burger"
+    assert body["max_quantity_per_order"] == 10
     assert len(body["option_groups"]) == 1
     assert body["option_groups"][0]["name"] == "Tamanho"
 

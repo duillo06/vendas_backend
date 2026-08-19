@@ -60,6 +60,34 @@ def test_checkout_happy_path(api_client, demo_store, x_burger_option_ids):
 
 @pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_rejects_over_max_quantity_per_order(api_client, demo_store, x_burger_option_ids):
+    from apps.catalog.models import Product
+
+    product_id, options = x_burger_option_ids
+    Product.all_objects.filter(id=product_id).update(max_quantity_per_order=2)
+
+    payload = {
+        "customer_name": "Maria Santos",
+        "customer_phone": "(11) 98765-4321",
+        "delivery_type": "pickup",
+        "payment_method": "pix",
+        "items": [{"product_id": product_id, "quantity": 3, "options": options}],
+    }
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        payload,
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "QUANTITY_LIMIT"
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
 def test_checkout_authenticated_customer_links_order(api_client, demo_store, x_burger_option_ids):
     from apps.accounts.services.customer_auth_service import CustomerAuthService
     from apps.customers.models import Customer, CustomerAddress

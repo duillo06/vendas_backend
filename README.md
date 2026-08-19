@@ -187,3 +187,6 @@ tests/           # pytest
 - [x] CI Docker + deploy staging (GitHub Actions)
 
 Próximo: **Sprint 11** — Clientes e conta (V1).
+
+## Comando para startar o ngrok 
+~/.local/bin/ngrok http 5174

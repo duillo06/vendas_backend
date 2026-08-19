@@ -12,6 +12,7 @@ from apps.orders.domain.exceptions import (
     EmptyCartError,
     InvalidOptionsError,
     ProductUnavailableError,
+    QuantityLimitError,
     StoreClosedError,
 )
 from core.utils.money import round_money
@@ -26,7 +27,15 @@ class CartValidationService:
         if not StoreHoursService.is_store_open(tenant):
             raise StoreClosedError()
 
+        qty_by_product: dict[str, int] = {}
+        for raw in items:
+            product_id = str(raw.get("product_id") or "")
+            quantity = int(raw.get("quantity", 1))
+            if product_id:
+                qty_by_product[product_id] = qty_by_product.get(product_id, 0) + quantity
+
         validated: list[dict] = []
+        checked_limit: set[str] = set()
 
         for raw in items:
             product_id = raw.get("product_id")
@@ -45,6 +54,16 @@ class CartValidationService:
 
             if not product.is_available:
                 raise ProductUnavailableError(f"{product.name} indisponível")
+
+            product_key = str(product.id)
+            limit = min(99, int(product.max_quantity_per_order or 10))
+            if product_key not in checked_limit:
+                checked_limit.add(product_key)
+                ordered = qty_by_product.get(product_key, 0)
+                if ordered > limit:
+                    raise QuantityLimitError(
+                        f"Você pode pedir no máximo {limit} unidades de {product.name} neste pedido."
+                    )
 
             raw_components = raw.get("components") or []
             try:

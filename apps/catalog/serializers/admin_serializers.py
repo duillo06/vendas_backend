@@ -231,6 +231,7 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
             "is_available",
             "sort_order",
             "prep_time",
+            "max_quantity_per_order",
             "tags",
             "metadata",
             "images",
@@ -251,6 +252,11 @@ class ProductAdminDetailSerializer(serializers.ModelSerializer):
         tenant = TenantContext.get()
         if not Category.objects.filter(id=value, tenant=tenant).exists():
             raise serializers.ValidationError("Categoria inválida")
+        return value
+
+    def validate_max_quantity_per_order(self, value):
+        if value < 1 or value > 99:
+            raise serializers.ValidationError("Informe um número entre 1 e 99.")
         return value
 
     def get_category(self, obj):

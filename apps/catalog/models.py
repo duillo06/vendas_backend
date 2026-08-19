@@ -85,6 +85,8 @@ class Product(TenantAwareModel, SoftDeleteModel):
     is_active = models.BooleanField(default=True)
     is_available = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
+    # teto por pedido — não é estoque
+    max_quantity_per_order = models.PositiveIntegerField(default=10)
     prep_time = models.PositiveIntegerField(blank=True, null=True)
     calories = models.PositiveIntegerField(blank=True, null=True)
     tags = models.JSONField(default=list, blank=True)
@@ -101,6 +103,11 @@ class Product(TenantAwareModel, SoftDeleteModel):
             models.CheckConstraint(
                 condition=models.Q(base_price__gte=0),
                 name="products_positive_price",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_quantity_per_order__gte=1)
+                & models.Q(max_quantity_per_order__lte=99),
+                name="products_max_qty_per_order_range",
             ),
         ]
         indexes = [

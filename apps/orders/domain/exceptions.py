@@ -21,6 +21,11 @@ class InvalidOptionsError(DomainException):
     message = "Opções inválidas para o produto"
 
 
+class QuantityLimitError(DomainException):
+    code = "QUANTITY_LIMIT"
+    message = "Quantidade acima do permitido neste pedido"
+
+
 class MinOrderValueError(DomainException):
     code = "MIN_ORDER_VALUE"
     message = "Valor mínimo do pedido não atingido"
