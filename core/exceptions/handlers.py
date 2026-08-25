@@ -1,4 +1,5 @@
-from rest_framework.exceptions import APIException
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.exceptions import APIException, NotFound
 from rest_framework.views import exception_handler
 
 from core.exceptions.domain import DomainException
@@ -67,6 +68,10 @@ def flatten_validation_detail(detail, prefix: str = "") -> list[str]:
 
 
 def custom_exception_handler(exc, context):
+    # objeto de outro tenant / inexistente → 404 limpo (não 500)
+    if isinstance(exc, ObjectDoesNotExist):
+        exc = NotFound()
+
     if isinstance(exc, DomainException):
         from rest_framework.response import Response
 
@@ -77,7 +82,21 @@ def custom_exception_handler(exc, context):
 
     response = exception_handler(exc, context)
     if response is None:
-        return None
+        from django.conf import settings
+        from rest_framework.response import Response
+
+        # em prod não devolve stack/HTML; DEBUG=True deixa o Django mostrar
+        if settings.DEBUG:
+            return None
+        return Response(
+            {
+                "error": {
+                    "code": "SERVER_ERROR",
+                    "message": "Erro interno. Tente de novo em instantes.",
+                }
+            },
+            status=500,
+        )
 
     if isinstance(exc, APIException):
         code = getattr(exc, "default_code", "error")

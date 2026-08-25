@@ -44,8 +44,10 @@ class CartValidationService:
                 raise InvalidOptionsError("Quantidade inválida")
 
             try:
-                product = Product.objects.select_related("composition").get(
+                # all_objects + tenant explícito — nunca pega cardápio de outra loja
+                product = Product.all_objects.select_related("composition").get(
                     id=product_id,
+                    tenant=tenant,
                     is_active=True,
                     deleted_at__isnull=True,
                 )

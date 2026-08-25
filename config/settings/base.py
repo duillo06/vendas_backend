@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "core.middleware.security_headers.ApiSecurityHeadersMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -103,6 +104,11 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardPagination",
     "PAGE_SIZE": 20,
     "EXCEPTION_HANDLER": "core.exceptions.handlers.custom_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": "20/min",
+        "checkout": "40/min",
+        "whatsapp_test": "5/min",
+    },
 }
 
 CORS_ALLOWED_ORIGINS: list[str] = []

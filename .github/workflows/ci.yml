@@ -28,6 +28,12 @@ jobs:
       - name: Ruff
         run: ruff check .
 
+      - name: Bandit (High+)
+        run: bandit -r apps/ -ll
+
+      - name: pip-audit
+        run: python -m pip_audit
+
       - name: Tests
         env:
           DJANGO_ENV: test

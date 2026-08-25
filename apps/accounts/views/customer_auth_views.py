@@ -11,6 +11,7 @@ from apps.accounts.serializers.customer_auth_serializers import (
 )
 from apps.accounts.services.customer_auth_service import CustomerAuthService
 from core.tenancy.context import TenantContext
+from core.throttling import AuthLoginThrottle
 
 
 class CustomerAuthMixin:
@@ -35,6 +36,7 @@ class CustomerRegisterView(CustomerAuthMixin, APIView):
 
 class CustomerLoginView(CustomerAuthMixin, APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthLoginThrottle]
 
     def post(self, request):
         serializer = CustomerLoginSerializer(data=request.data)

@@ -56,7 +56,11 @@ class CampaignService:
             raise InvalidCampaignError("Escolha um produto")
 
         try:
-            product = Product.objects.get(id=product_id, tenant=tenant)
+            product = Product.all_objects.get(
+                id=product_id,
+                tenant=tenant,
+                deleted_at__isnull=True,
+            )
         except Product.DoesNotExist as exc:
             raise InvalidCampaignError("Produto não encontrado") from exc
 
@@ -120,7 +124,11 @@ class CampaignService:
 
         if "product_id" in data and data["product_id"]:
             try:
-                product = Product.objects.get(id=data["product_id"], tenant=campaign.tenant)
+                product = Product.all_objects.get(
+                    id=data["product_id"],
+                    tenant=campaign.tenant,
+                    deleted_at__isnull=True,
+                )
             except Product.DoesNotExist as exc:
                 raise InvalidCampaignError("Produto não encontrado") from exc
             campaign.product = product

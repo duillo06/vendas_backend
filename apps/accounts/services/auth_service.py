@@ -79,18 +79,22 @@ class AuthService:
         }
 
     @staticmethod
-    def logout(*, refresh_token: str) -> None:
+    def logout(*, refresh_token: str, access_jti: str | None = None) -> None:
         try:
             token = RefreshToken(refresh_token)
         except TokenError as exc:
             raise AuthenticationFailed("Refresh token inválido") from exc
 
-        jti = str(token.get("jti", ""))
-        if not jti:
-            return
+        refresh_ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
+        access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
 
-        ttl = int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
-        cache.set(f"{TOKEN_BLACKLIST_PREFIX}{jti}", "1", timeout=ttl)
+        jti = str(token.get("jti", ""))
+        if jti:
+            cache.set(f"{TOKEN_BLACKLIST_PREFIX}{jti}", "1", timeout=refresh_ttl)
+
+        # access também — senão o bearer antigo segue válido até expirar
+        if access_jti:
+            cache.set(f"{TOKEN_BLACKLIST_PREFIX}{access_jti}", "1", timeout=access_ttl)
 
     @staticmethod
     def get_permissions(employee: Employee) -> list[str]:

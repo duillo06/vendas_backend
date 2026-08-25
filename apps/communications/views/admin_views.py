@@ -25,6 +25,7 @@ from apps.communications.services.connection_service import ConnectionService
 from apps.communications.services.engine import CommunicationEngine
 from apps.communications.services.template_service import TemplateService
 from core.permissions.rbac import HasPermission
+from core.throttling import WhatsAppTestThrottle
 
 
 def _forbid(request, view):
@@ -175,6 +176,7 @@ class WhatsAppDisconnectView(APIView):
 class WhatsAppConnectionTestView(APIView):
     authentication_classes = [EmployeeJWTAuthentication]
     permission_classes = [IsEmployeeAuthenticated]
+    throttle_classes = [WhatsAppTestThrottle]
 
     def post(self, request):
         if err := _forbid(request, self):

@@ -13,10 +13,12 @@ from apps.accounts.serializers.employee_serializers import (
     RefreshSerializer,
 )
 from apps.accounts.services.auth_service import AuthService
+from core.throttling import AuthLoginThrottle
 
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthLoginThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -53,7 +55,14 @@ class LogoutView(APIView):
         serializer = LogoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        AuthService.logout(refresh_token=serializer.validated_data["refresh"])
+        access_jti = None
+        if request.auth is not None:
+            access_jti = str(request.auth.get("jti", "") or "") or None
+
+        AuthService.logout(
+            refresh_token=serializer.validated_data["refresh"],
+            access_jti=access_jti,
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

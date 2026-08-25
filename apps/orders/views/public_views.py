@@ -12,6 +12,7 @@ from apps.orders.serializers.public_serializers import CheckoutSerializer, Order
 from apps.orders.services.order_service import OrderService
 from apps.orders.tasks import send_order_confirmation_email
 from core.tenancy.context import TenantContext
+from core.throttling import CheckoutThrottle
 
 
 class PublicOrderMixin:
@@ -25,6 +26,7 @@ class PublicOrderMixin:
 class CheckoutView(PublicOrderMixin, APIView):
     permission_classes = [AllowAny]
     authentication_classes = [CustomerJWTAuthentication]
+    throttle_classes = [CheckoutThrottle]
 
     def post(self, request):
         serializer = CheckoutSerializer(data=request.data, context={"request": request})

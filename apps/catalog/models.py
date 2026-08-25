@@ -24,7 +24,15 @@ class SoftDeleteTenantQuerySet(TenantQuerySet):
 
 class SoftDeleteTenantManager(TenantManager):
     def get_queryset(self):
-        return SoftDeleteTenantQuerySet(self.model, using=self._db).alive()
+        # igual TenantManager, mas só registros vivos
+        from core.tenancy.context import TenantContext
+
+        qs = SoftDeleteTenantQuerySet(self.model, using=self._db).alive()
+        try:
+            tenant_id = TenantContext.get_id()
+        except RuntimeError:
+            return qs.none()
+        return qs.filter(tenant_id=tenant_id)
 
 
 class Category(TenantAwareModel, SoftDeleteModel):
