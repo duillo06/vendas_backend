@@ -1,5 +1,7 @@
 # Deploy — VPS Hostinger + GitHub Actions
 
+Receita prática com os comandos que usamos no KVM 2: [`README.md`](./README.md).
+
 Guia para subir o Food Service em produção (Docker) com **deploy automático via Git** (`push` em `main`).
 
 ## Arquitetura
@@ -152,9 +154,15 @@ Também dá para rodar manualmente: Actions → Deploy Production → Run workfl
 
 ## 6. Onboarding do cliente
 
+Sempre a partir de `/opt/foodservice/vendas_backend`, com `--env-file` (sem isso o Compose falha com `POSTGRES_PASSWORD obrigatório`):
+
 ```bash
 cd /opt/foodservice/vendas_backend
-docker compose -f deploy/docker-compose.prod.yml exec api python manage.py onboard_tenant \
+
+# atalho (recomendado na sessão SSH)
+COMPOSE="docker compose -f deploy/docker-compose.prod.yml --env-file .env.production"
+
+$COMPOSE exec api python manage.py onboard_tenant \
   --trade-name "Pizzaria do João" \
   --subdomain pizzaria-joao \
   --email contato@pizzariajoao.com \
@@ -169,25 +177,43 @@ Depois:
 2. Descomente/adicione o bloco no `deploy/caddy/Caddyfile.template`
 3. Rode de novo o `remote-deploy.sh` (ou push em `main`)
 
+### Seed demo (opcional)
+
+Só para ambiente de demonstração / smoke test — **não** use como onboarding de cliente real.
+
+```bash
+cd /opt/foodservice/vendas_backend
+COMPOSE="docker compose -f deploy/docker-compose.prod.yml --env-file .env.production"
+
+$COMPOSE exec api python manage.py seed_locations
+$COMPOSE exec api python manage.py seed_demo_pizzaria
+# sem baixar fotos: $COMPOSE exec api python manage.py seed_demo_pizzaria --skip-images
+```
+
+Login demo (seed): `admin@demo.com` / `demo1234` — troque a senha se o tenant demo for público.
+
 ## 7. Comandos úteis na VPS
 
 ```bash
 cd /opt/foodservice/vendas_backend
+COMPOSE="docker compose -f deploy/docker-compose.prod.yml --env-file .env.production"
 
 # status
-docker compose -f deploy/docker-compose.prod.yml ps
+$COMPOSE ps
 
 # logs
-docker compose -f deploy/docker-compose.prod.yml logs -f --tail=100 api
-docker compose -f deploy/docker-compose.prod.yml logs -f --tail=50 caddy
+$COMPOSE logs -f --tail=100 api
+$COMPOSE logs -f --tail=50 caddy
 
 # redeploy manual
 bash deploy/scripts/remote-deploy.sh
 
 # backup Postgres
-docker compose -f deploy/docker-compose.prod.yml exec -T db \
+$COMPOSE exec -T db \
   pg_dump -U foodservice foodservice > backup-$(date +%F).sql
 ```
+
+> **Dica:** `remote-deploy.sh` já passa `--env-file .env.production`. Em comandos manuais (`exec`, `ps`, `logs`), inclua o flag — senão: `POSTGRES_PASSWORD is missing`.
 
 ## 8. Monitoramento e e-mail
 
