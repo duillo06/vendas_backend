@@ -276,12 +276,12 @@ cd /opt/evolution && bash scripts/bootstrap-vps.sh
 No `.env.production` do Food Service:
 
 ```env
-EVOLUTION_HOSTED_BASE_URL=http://host.docker.internal:8080
+EVOLUTION_HOSTED_BASE_URL=http://evolution_api:8080
 EVOLUTION_HOSTED_API_KEY=<AUTHENTICATION_API_KEY>
 PUBLIC_API_BASE_URL=https://api.SEU_DOMINIO
 ```
 
-Depois: `bash deploy/scripts/remote-deploy.sh` e teste **Conexões → forma simples** (QR).
+O Compose de produção entra na rede externa `evolution-net` (suba a Evolution antes do Food Service).
 
 Detalhes: README do repo `evolution` + `docs/CLIENTES.md` / `docs/VPS.md`.
 
