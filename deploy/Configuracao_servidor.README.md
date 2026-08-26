@@ -355,4 +355,4 @@ $COMPOSE exec -T db \
 - **Segurança básica do bootstrap:** Docker + UFW (22/80/443). Ainda não inclui fail2ban, desligar senha root, etc.
 - **Build do frontend** roda dentro do Docker (Nginx image); erro de TypeScript quebra o deploy inteiro.
 - Confs geradas (`deploy/nginx/default.conf`, `deploy/caddy/Caddyfile`) não devem travar o `git pull` — o script/Actions descartam antes do pull.
-- Evolution API **não** entra neste Compose; configurar depois (URL/key no env) se for WhatsApp hospedado.
+- Evolution API **não** entra neste Compose — repo próprio `github.com/duillo06/evolution` em `/opt/evolution`. Ver `DEPLOY.md` §10.

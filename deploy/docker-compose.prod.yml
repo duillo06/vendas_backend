@@ -42,6 +42,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+    # Evolution compartilhada no host (127.0.0.1:8080) — ver repo evolution
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - media:/app/media
     depends_on:
@@ -65,6 +68,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - media:/app/media
     depends_on:

@@ -259,6 +259,32 @@ vendas_frontend/deploy/
 └── README.md
 ```
 
+## 10. Evolution (WhatsApp) — stack compartilhada
+
+A Evolution **não** entra neste Compose. Roda em repo próprio:
+
+- GitHub: `https://github.com/duillo06/evolution`
+- VPS: `/opt/evolution`
+
+```bash
+# na VPS (uma vez)
+cd /opt && git clone git@github.com:duillo06/evolution.git evolution
+cd /opt/evolution && bash scripts/bootstrap-vps.sh
+# copie AUTHENTICATION_API_KEY → .env.production do Food Service
+```
+
+No `.env.production` do Food Service:
+
+```env
+EVOLUTION_HOSTED_BASE_URL=http://host.docker.internal:8080
+EVOLUTION_HOSTED_API_KEY=<AUTHENTICATION_API_KEY>
+PUBLIC_API_BASE_URL=https://api.SEU_DOMINIO
+```
+
+Depois: `bash deploy/scripts/remote-deploy.sh` e teste **Conexões → forma simples** (QR).
+
+Detalhes: README do repo `evolution` + `docs/CLIENTES.md` / `docs/VPS.md`.
+
 ## Desenvolvimento local (referência)
 
 Portas alternativas: API `8001`, storefront `5174`, backoffice `5175` — ver `docs/00-portas-locais.md`.
