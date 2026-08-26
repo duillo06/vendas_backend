@@ -17,6 +17,24 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        min_length=8,
+        max_length=128,
+    )
+    confirm_password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate(self, attrs):
+        if attrs["new_password"] != attrs["confirm_password"]:
+            raise serializers.ValidationError(
+                {"confirm_password": "As senhas não coincidem"}
+            )
+        return attrs
+
+
 class EmployeeSerializer(serializers.ModelSerializer):
     permissions = serializers.ListField(child=serializers.CharField(), read_only=True)
 

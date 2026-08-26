@@ -7,6 +7,7 @@ from apps.accounts.authentication import EmployeeJWTAuthentication
 from apps.accounts.permissions import IsEmployeeAuthenticated
 from apps.accounts.principal import EmployeePrincipal
 from apps.accounts.serializers.employee_serializers import (
+    ChangePasswordSerializer,
     EmployeeSerializer,
     LoginSerializer,
     LogoutSerializer,
@@ -86,3 +87,20 @@ class MeView(APIView):
                 "tenant": CompanyMinimalSerializer(employee.tenant).data,
             }
         )
+
+
+class ChangePasswordView(APIView):
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        principal: EmployeePrincipal = request.user
+        AuthService.change_password(
+            employee=principal.employee,
+            current_password=serializer.validated_data["current_password"],
+            new_password=serializer.validated_data["new_password"],
+        )
+        return Response({"detail": "Senha atualizada"}, status=status.HTTP_200_OK)

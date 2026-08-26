@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -10,6 +10,26 @@ from apps.accounts.models import Employee, RolePermission
 
 
 class AuthService:
+    @staticmethod
+    def change_password(
+        *,
+        employee: Employee,
+        current_password: str,
+        new_password: str,
+    ) -> None:
+        # troca a própria senha — precisa da atual pra não trocar de besteira
+        if not employee.check_password(current_password):
+            raise ValidationError({"current_password": "Senha atual incorreta"})
+
+        if len(new_password) < 8:
+            raise ValidationError({"new_password": "Use pelo menos 8 caracteres"})
+
+        if current_password == new_password:
+            raise ValidationError({"new_password": "A nova senha deve ser diferente da atual"})
+
+        employee.set_password(new_password)
+        employee.save(update_fields=["password_hash", "updated_at"])
+
     @staticmethod
     def login(*, email: str, password: str, subdomain: str | None = None) -> dict:
         employees = Employee.all_objects.filter(email=email, is_active=True).select_related(
