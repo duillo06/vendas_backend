@@ -13,6 +13,9 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "dev-insecure-change-me")
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
 
+# host do storefront sem subdomínio (demo.{domínio})
+STOREFRONT_BASE_DOMAIN = os.environ.get("STOREFRONT_BASE_DOMAIN", "foodservice.app")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",

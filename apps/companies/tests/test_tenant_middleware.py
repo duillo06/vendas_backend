@@ -22,6 +22,21 @@ def test_middleware_resolves_foodservice_subdomain(demo_company):
 
 
 @pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"], STOREFRONT_BASE_DOMAIN="pediu.cloud")
+def test_middleware_resolves_storefront_base_domain(demo_company):
+    factory = RequestFactory()
+    request = factory.get(
+        "/api/v1/public/catalog/",
+        HTTP_HOST="demo.pediu.cloud",
+    )
+
+    middleware = TenantMiddleware(lambda req: req)
+    middleware(request)
+
+    assert request.tenant == demo_company
+
+
+@pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
 def test_middleware_resolves_localhost_subdomain(demo_company):
     factory = RequestFactory()

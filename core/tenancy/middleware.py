@@ -1,4 +1,8 @@
+from django.conf import settings
+
 from core.tenancy.context import TenantContext
+
+RESERVED_SUBDOMAINS = frozenset({"www", "api", "admin", "app"})
 
 
 class TenantMiddleware:
@@ -37,19 +41,35 @@ class TenantMiddleware:
         tenant_subdomain = request.headers.get("X-Tenant-Subdomain")
         if tenant_subdomain:
             subdomain = tenant_subdomain.strip().lower()
-            if subdomain and subdomain not in ("www", "api", "admin", "app"):
+            if subdomain and subdomain not in RESERVED_SUBDOMAINS:
                 return self._get_active_company(subdomain=subdomain)
 
-        host = request.get_host().split(":")[0]
+        host = request.get_host().split(":")[0].lower()
+        subdomain = self._subdomain_from_host(host)
+        if subdomain:
+            return self._get_active_company(subdomain=subdomain)
+
+        return None
+
+    def _subdomain_from_host(self, host: str) -> str | None:
+        # prod: demo.pediu.cloud (STOREFRONT_BASE_DOMAIN)
+        base = getattr(settings, "STOREFRONT_BASE_DOMAIN", "") or ""
+        base = base.lstrip(".").lower()
+        if base and host.endswith(f".{base}"):
+            subdomain = host[: -(len(base) + 1)]
+            if subdomain and subdomain not in RESERVED_SUBDOMAINS and "." not in subdomain:
+                return subdomain
+
+        # legado / docs
         if host.endswith(".foodservice.app"):
-            subdomain = host.replace(".foodservice.app", "")
-            if subdomain and subdomain not in ("www", "api", "admin", "app"):
-                return self._get_active_company(subdomain=subdomain)
+            subdomain = host[: -len(".foodservice.app")]
+            if subdomain and subdomain not in RESERVED_SUBDOMAINS and "." not in subdomain:
+                return subdomain
 
         if host.endswith(".localhost"):
-            subdomain = host.replace(".localhost", "")
-            if subdomain and subdomain not in ("www", "api", "admin", "app"):
-                return self._get_active_company(subdomain=subdomain)
+            subdomain = host[: -len(".localhost")]
+            if subdomain and subdomain not in RESERVED_SUBDOMAINS and "." not in subdomain:
+                return subdomain
 
         return None
 
