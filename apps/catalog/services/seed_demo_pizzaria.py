@@ -322,6 +322,13 @@ def _ensure_option_group(
     options: list[tuple[str, str]],
 ) -> tuple[OptionGroup, dict[str, Option]]:
     """options: [(nome, preço_modificador_zero), ...] — preços reais vão no produto/categoria."""
+    # nomes antigos do seed → nome limpo (evita Pequena + Pequena (4 fatias))
+    rename_from = {
+        "Pequena": ["Pequena (4 fatias)"],
+        "Média": ["Média (6 fatias)"],
+        "Grande": ["Grande (8 fatias)"],
+    }
+
     group = OptionGroup.all_objects.filter(tenant=company, name=name, kind=kind).first()
     if group is None:
         group = OptionGroupService.create(
@@ -350,6 +357,12 @@ def _ensure_option_group(
     by_name: dict[str, Option] = {}
     for idx, (opt_name, _mod) in enumerate(options):
         existing = Option.all_objects.filter(option_group=group, name=opt_name).first()
+        if existing is None:
+            for old_name in rename_from.get(opt_name, []):
+                existing = Option.all_objects.filter(option_group=group, name=old_name).first()
+                if existing:
+                    existing.name = opt_name
+                    break
         if existing:
             existing.is_active = True
             existing.is_available = True
@@ -432,9 +445,9 @@ def seed_demo_pizzaria(
             required=True,
             pricing_strategy="replace_base",
             options=[
-                ("Pequena (4 fatias)", "0"),
-                ("Média (6 fatias)", "0"),
-                ("Grande (8 fatias)", "0"),
+                ("Pequena", "0"),
+                ("Média", "0"),
+                ("Grande", "0"),
             ],
         )
         crust_group, crusts = _ensure_option_group(
@@ -506,9 +519,9 @@ def seed_demo_pizzaria(
             ProductOptionPriceService.sync(
                 product,
                 [
-                    {"option_id": sizes["Pequena (4 fatias)"].id, "price": price_p},
-                    {"option_id": sizes["Média (6 fatias)"].id, "price": price_m},
-                    {"option_id": sizes["Grande (8 fatias)"].id, "price": price_g},
+                    {"option_id": sizes["Pequena"].id, "price": price_p},
+                    {"option_id": sizes["Média"].id, "price": price_m},
+                    {"option_id": sizes["Grande"].id, "price": price_g},
                 ],
                 replace=True,
             )
