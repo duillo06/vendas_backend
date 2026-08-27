@@ -285,6 +285,16 @@ O Compose de produção entra na rede externa `evolution-net` (suba a Evolution 
 
 Detalhes: README do repo `evolution` + `docs/CLIENTES.md` / `docs/VPS.md`.
 
+## 11. Coexistência com sistema_iasd (mesma VPS)
+
+O IASD roda em `/opt/sistema_iasd` na **mesma** Hostinger.
+
+- Domínio `iasdaracuai.com.br` / `www` está no `deploy/caddy/Caddyfile.template`
+- Nginx do IASD escuta só `127.0.0.1:8088`; o Caddy faz TLS e proxy para `iasd_nginx_prod:80`
+- Após `compose up`, o `remote-deploy.sh` conecta o Caddy à rede `sistema_iasd_iasd_net`
+
+Doc completa: `sistema_iasd/deploy/DEPLOY.md`.
+
 ## Desenvolvimento local (referência)
 
 Portas alternativas: API `8001`, storefront `5174`, backoffice `5175` — ver `docs/00-portas-locais.md`.
