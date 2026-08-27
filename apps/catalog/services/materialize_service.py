@@ -116,7 +116,7 @@ class MaterializeService:
 
     @staticmethod
     def visible_option_ids(product: Product, option_group_id) -> set[str] | None:
-        """None = todas as opções do grupo; set = filtrar (receita − exclusões)."""
+        """None = todas as opções do grupo; set = filtrar (receita − exclusões + preços do produto)."""
         library = (
             CategoryLibrary.all_objects.filter(
                 category_id=product.category_id,
@@ -127,7 +127,7 @@ class MaterializeService:
         if not library:
             return None
 
-        from apps.catalog.models import CategoryLibraryItem
+        from apps.catalog.models import CategoryLibraryItem, Option, ProductOptionPrice
 
         items = list(
             CategoryLibraryItem.all_objects.filter(category_library=library).values_list(
@@ -138,6 +138,17 @@ class MaterializeService:
             return None
 
         allowed = {str(oid) for oid in items}
+        # preço neste produto = também oferece, mesmo se a receita da categoria não listou
+        group_option_ids = Option.all_objects.filter(
+            option_group_id=option_group_id,
+            is_active=True,
+        ).values_list("id", flat=True)
+        priced = ProductOptionPrice.all_objects.filter(
+            product=product,
+            option_id__in=group_option_ids,
+        ).values_list("option_id", flat=True)
+        allowed |= {str(oid) for oid in priced}
+
         excluded = set(
             str(eid)
             for eid in ProductOptionExclusion.all_objects.filter(product=product).values_list(
