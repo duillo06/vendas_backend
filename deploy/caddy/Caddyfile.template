@@ -27,3 +27,10 @@ demo.__BASE_DOMAIN__ {
 # 	encode gzip
 # 	reverse_proxy nginx:80
 # }
+
+# IASD Araçuaí — mesmo Caddy da VPS; container em /opt/sistema_iasd
+# (remote-deploy liga o Caddy na rede sistema_iasd_iasd_net)
+iasdaracuai.com.br, www.iasdaracuai.com.br {
+	encode gzip
+	reverse_proxy iasd_nginx_prod:80
+}

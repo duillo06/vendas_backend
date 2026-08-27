@@ -74,6 +74,13 @@ export BASE_DOMAIN
 echo "==> Docker compose up --build"
 "${COMPOSE[@]}" up -d --build --remove-orphans
 
+# IASD na mesma VPS: Caddy precisa enxergar iasd_nginx_prod
+if docker network inspect sistema_iasd_iasd_net >/dev/null 2>&1; then
+  echo "==> Ligando Caddy à rede do sistema_iasd"
+  docker network connect sistema_iasd_iasd_net foodservice-prod-caddy-1 2>/dev/null \
+    || echo "    (Caddy já estava na rede sistema_iasd_iasd_net)"
+fi
+
 echo "==> Migrate (garantia — entrypoint também migra)"
 "${COMPOSE[@]}" exec -T api python manage.py migrate --noinput
 
