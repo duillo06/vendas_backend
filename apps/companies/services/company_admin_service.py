@@ -3,6 +3,7 @@ from typing import Any
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from apps.companies.domain.print_settings import normalize_print_settings
 from apps.companies.models import BusinessHours, Company, CompanySettings
 from apps.companies.services.business_hours_service import BusinessHoursService
 from apps.companies.services.first_setup_service import FirstSetupService
@@ -38,6 +39,7 @@ class CompanyAdminService:
             "auto_close_outside_hours": settings.auto_close_outside_hours,
             "payment_methods": settings.payment_methods,
             "theme": settings.theme,
+            "print_settings": normalize_print_settings(settings.print_settings),
             "setup": FirstSetupService.normalize(settings.setup),
         }
 

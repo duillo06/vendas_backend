@@ -2,6 +2,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 
+from apps.companies.domain.print_settings import normalize_print_settings
 from apps.companies.models import Company, CompanySettings
 from apps.locations.services import LocationCatalogService
 
@@ -57,12 +58,16 @@ class SettingsService:
             "delivery_state",
             "theme",
             "notification_settings",
+            "print_settings",
             "setup",
         }
 
         for key, value in fields.items():
-            if key in allowed:
-                setattr(settings, key, value)
+            if key not in allowed:
+                continue
+            if key == "print_settings":
+                value = normalize_print_settings(value)
+            setattr(settings, key, value)
 
         if not has_city_id and {"delivery_city", "delivery_state"} <= fields.keys():
             city = LocationCatalogService.find_city(

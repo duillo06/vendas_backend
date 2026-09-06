@@ -70,6 +70,8 @@ class CompanySettings(TenantAwareModel):
     )
     theme = models.JSONField(blank=True, null=True)
     notification_settings = models.JSONField(blank=True, null=True)
+    # preferências da comanda térmica (papel, vias, o que mostrar)
+    print_settings = models.JSONField(blank=True, null=True)
     # Fase 4 — progresso do assistente de 1ª configuração
     setup = models.JSONField(blank=True, null=True, default=dict)
 
