@@ -148,6 +148,25 @@ Fluxo: `git push origin main` → Action SSH → `/opt/foodservice/vendas_backen
 
 Também dá para rodar manualmente: Actions → Deploy Production → Run workflow.
 
+### Se o Actions falhar com `dial tcp …:22: i/o timeout`
+
+O GitHub **não está conseguindo abrir a porta 22** da VPS (não é falha do build do frontend).
+
+Checklist rápido:
+
+1. No painel Hostinger (VPS → Firewall), libere **TCP 22** de origem `0.0.0.0/0` (ou desative o firewall do painel se o UFW da máquina já cuida disso).
+2. Confira se `PRODUCTION_HOST` é o **IP público** da VPS (não hostname interno).
+3. Na VPS: `ss -tlnp | grep ':22'` e `ufw status` — SSH deve estar escutando e liberado.
+4. Teste do seu PC: `ssh -o ConnectTimeout=10 root@IP_DA_VPS`.
+
+Enquanto o firewall bloqueia, o deploy automático não funciona; dá para atualizar na mão:
+
+```bash
+ssh root@IP_DA_VPS
+cd /opt/foodservice/vendas_backend
+bash deploy/scripts/remote-deploy.sh
+```
+
 ### Staging (opcional)
 
 `deploy-staging.yml` no backend ainda aponta para branch `develop` e environment `staging` (`STAGING_*`).

@@ -16,18 +16,25 @@ jobs:
     environment: production
 
     steps:
+      # i/o timeout em :22 costuma ser firewall/Hostinger ou blip de rede —
+      # tcp4 + timeout maior + retries cobrem o caso intermitente
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
+        uses: Wandalen/wretry.action@v3.5.0
         with:
-          host: ${{ secrets.PRODUCTION_HOST }}
-          username: ${{ secrets.PRODUCTION_USER }}
-          key: ${{ secrets.PRODUCTION_SSH_KEY }}
-          # VPS Hostinger às vezes é lenta no build — 15 min
-          command_timeout: 15m
-          script: |
-            set -euo pipefail
-            cd /opt/foodservice/vendas_backend
-            # confs geradas na VPS travam o git pull — descarta antes
-            git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
-            export DEPLOY_BRANCH=main
-            bash deploy/scripts/remote-deploy.sh
+          attempt_limit: 3
+          attempt_delay: 20000
+          action: appleboy/ssh-action@v1.2.5
+          with: |
+            host: ${{ secrets.PRODUCTION_HOST }}
+            username: ${{ secrets.PRODUCTION_USER }}
+            key: ${{ secrets.PRODUCTION_SSH_KEY }}
+            protocol: tcp4
+            timeout: 2m
+            command_timeout: 20m
+            script: |
+              set -euo pipefail
+              cd /opt/foodservice/vendas_backend
+              # confs geradas na VPS travam o git pull — descarta antes
+              git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
+              export DEPLOY_BRANCH=main
+              bash deploy/scripts/remote-deploy.sh
