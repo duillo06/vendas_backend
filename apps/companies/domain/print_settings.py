@@ -12,6 +12,7 @@ DEFAULT_PRINT_SETTINGS = {
     "show_prep_time": True,
     "copies": 1,  # 1 | 2
     "footer_text": "Obrigado!",
+    "verse_text": "",  # versículo opcional no rodapé
 }
 
 
@@ -49,5 +50,11 @@ def normalize_print_settings(raw) -> dict:
         base["footer_text"] = ""
     else:
         base["footer_text"] = str(footer)[:120]
+
+    verse = raw.get("verse_text", base["verse_text"])
+    if verse is None:
+        base["verse_text"] = ""
+    else:
+        base["verse_text"] = str(verse).strip()[:280]
 
     return base

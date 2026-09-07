@@ -19,6 +19,7 @@ def test_normalize_print_settings_sanitizes():
             "show_prices": False,
             "copies": 2,
             "footer_text": "x" * 200,
+            "verse_text": "  " + ("y" * 300) + "  ",
         }
     )
     assert result["paper_width"] == "58"
@@ -26,6 +27,14 @@ def test_normalize_print_settings_sanitizes():
     assert result["show_prices"] is False
     assert result["copies"] == 2
     assert len(result["footer_text"]) == 120
+    assert len(result["verse_text"]) == 280
+    assert result["verse_text"].startswith("y")
+
+
+def test_normalize_print_settings_empty_verse():
+    result = normalize_print_settings({"verse_text": "   "})
+    assert result["verse_text"] == ""
+    assert result["footer_text"] == "Obrigado!"
 
 
 @pytest.fixture
