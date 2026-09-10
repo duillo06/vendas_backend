@@ -22,6 +22,12 @@ demo.__BASE_DOMAIN__ {
 	reverse_proxy nginx:80
 }
 
+# Jequi Pizza
+jequipizza.__BASE_DOMAIN__ {
+	encode gzip
+	reverse_proxy nginx:80
+}
+
 # Exemplo próximo cliente:
 # pizzaria-joao.__BASE_DOMAIN__ {
 # 	encode gzip
