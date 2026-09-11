@@ -43,8 +43,12 @@ def _serialize_connection(connection) -> dict:
             "provider_key": "evolution",
             "connection_mode": None,
             "last_health": None,
+            "active_alert": None,
         }
     meta = connection.provider_metadata or {}
+    from apps.communications.services.helpers import active_connection_alert
+
+    alert = active_connection_alert(connection=connection)
     return {
         "id": str(connection.id),
         "connected": connection.status == ConnectionStatus.CONNECTED,
@@ -59,6 +63,17 @@ def _serialize_connection(connection) -> dict:
         "last_error_message": human_error(connection.last_error_code)
         if connection.last_error_code
         else "",
+        "active_alert": (
+            {
+                "kind": alert.kind,
+                "severity": alert.severity,
+                "title": alert.title,
+                "body": alert.body,
+                "action_hint": alert.action_hint,
+            }
+            if alert
+            else None
+        ),
     }
 
 
@@ -182,12 +197,15 @@ class WhatsAppConnectionTestView(APIView):
         if err := _forbid(request, self):
             return err
         connection = ConnectionService.get_whatsapp(tenant=request.user.employee.tenant)
+        # status local pode ficar stale (webhook conflict) — confere na Evolution
+        if connection and connection.status != ConnectionStatus.CONNECTED:
+            connection = ConnectionService.refresh_session(connection=connection)
         if not connection or connection.status != ConnectionStatus.CONNECTED:
             return Response(
                 {
                     "error": {
                         "code": "NOT_CONNECTED",
-                        "message": "Conecte o WhatsApp antes de enviar o teste.",
+                        "message": "Conecte o WhatsApp antes de enviar o teste. Toque em Reconectar WhatsApp se precisar.",
                     },
                 },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -326,12 +344,14 @@ class TemplateTestView(APIView):
         if err := _forbid(request, self):
             return err
         connection = ConnectionService.get_whatsapp(tenant=request.user.employee.tenant)
+        if connection and connection.status != ConnectionStatus.CONNECTED:
+            connection = ConnectionService.refresh_session(connection=connection)
         if not connection or connection.status != ConnectionStatus.CONNECTED:
             return Response(
                 {
                     "error": {
                         "code": "NOT_CONNECTED",
-                        "message": "Conecte o WhatsApp antes de enviar o teste.",
+                        "message": "Conecte o WhatsApp antes de enviar o teste. Toque em Reconectar WhatsApp se precisar.",
                     },
                 },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,

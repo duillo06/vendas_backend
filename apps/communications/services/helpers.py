@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from django.utils import timezone
 
-from apps.communications.domain.catalog import SITUATION_CATALOG, human_error
+from apps.communications.domain.catalog import (
+    SESSION_UNSTABLE_ACTION,
+    SESSION_UNSTABLE_BODY,
+    SESSION_UNSTABLE_TITLE,
+    SITUATION_CATALOG,
+    human_error,
+)
 from apps.communications.domain.enums import (
     PHASE1_EVENT_KEYS,
     AlertSeverity,
@@ -17,6 +23,9 @@ from apps.communications.models import (
     SituationSetting,
 )
 from apps.companies.models import Company
+
+ALERT_KIND_DISCONNECTED = "whatsapp_disconnected"
+ALERT_KIND_SESSION_UNSTABLE = "whatsapp_session_unstable"
 
 
 def ensure_templates_and_situations(*, tenant: Company, channel: str = Channel.WHATSAPP) -> None:
@@ -86,6 +95,49 @@ def resolve_alert(*, tenant: Company, connection: CommunicationConnection, kind:
     ).update(resolved_at=timezone.now(), is_read=True)
 
 
+def flag_session_unstable(*, connection: CommunicationConnection) -> MerchantAlert:
+    """aviso quando envio falha com sessão “conectada” mas instável (ex.: WhatsApp Web)"""
+    connection.last_error_code = "session_unstable"
+    connection.save(update_fields=["last_error_code", "updated_at"])
+    return upsert_alert(
+        tenant=connection.tenant,
+        connection=connection,
+        kind=ALERT_KIND_SESSION_UNSTABLE,
+        title=SESSION_UNSTABLE_TITLE,
+        body=SESSION_UNSTABLE_BODY,
+        action_hint=SESSION_UNSTABLE_ACTION,
+        severity=AlertSeverity.WARNING,
+    )
+
+
+def resolve_connection_alerts(*, connection: CommunicationConnection) -> None:
+    resolve_alert(
+        tenant=connection.tenant,
+        connection=connection,
+        kind=ALERT_KIND_DISCONNECTED,
+    )
+    resolve_alert(
+        tenant=connection.tenant,
+        connection=connection,
+        kind=ALERT_KIND_SESSION_UNSTABLE,
+    )
+
+
+def active_connection_alert(
+    *,
+    connection: CommunicationConnection,
+) -> MerchantAlert | None:
+    return (
+        MerchantAlert.all_objects.filter(
+            tenant=connection.tenant,
+            connection=connection,
+            resolved_at__isnull=True,
+        )
+        .order_by("-created_at")
+        .first()
+    )
+
+
 def format_phone_display(e164: str) -> str:
     digits = "".join(c for c in (e164 or "") if c.isdigit())
     if len(digits) >= 11 and digits.startswith("55"):
@@ -107,6 +159,9 @@ __all__ = [
     "ensure_templates_and_situations",
     "upsert_alert",
     "resolve_alert",
+    "flag_session_unstable",
+    "resolve_connection_alerts",
+    "active_connection_alert",
     "format_phone_display",
     "instance_name_for",
     "PHASE1_EVENT_KEYS",
@@ -114,4 +169,6 @@ __all__ = [
     "ConnectionRole",
     "Channel",
     "human_error",
+    "ALERT_KIND_DISCONNECTED",
+    "ALERT_KIND_SESSION_UNSTABLE",
 ]

@@ -161,16 +161,30 @@ class CommunicationEngine:
             dispatch.save()
         except EvolutionHttpError as exc:
             dispatch.status = DispatchStatus.FAILED
-            dispatch.error_code = exc.error_code
-            dispatch.error_message = human_error(exc.error_code)
+            dispatch.error_code = (
+                "session_unstable"
+                if exc.error_code in ("provider_timeout", "send_failed")
+                else exc.error_code
+            )
+            dispatch.error_message = human_error(dispatch.error_code)
             dispatch.save()
-            raise ValueError(human_error(exc.error_code)) from exc
+            if exc.error_code in ("provider_timeout", "send_failed"):
+                from apps.communications.services.helpers import flag_session_unstable
+
+                flag_session_unstable(connection=connection)
+            raise ValueError(human_error(dispatch.error_code)) from exc
         except Exception as exc:
             dispatch.status = DispatchStatus.FAILED
             dispatch.error_code = "send_failed"
             dispatch.error_message = human_error("send_failed")
             dispatch.save()
+            from apps.communications.services.helpers import flag_session_unstable
+
+            flag_session_unstable(connection=connection)
             raise ValueError(human_error("send_failed")) from exc
+        from apps.communications.services.helpers import resolve_connection_alerts
+
+        resolve_connection_alerts(connection=connection)
         return dispatch
 
     @staticmethod

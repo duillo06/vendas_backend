@@ -110,17 +110,41 @@ SITUATION_CATALOG: dict[str, dict] = {
 
 assert set(SITUATION_CATALOG) == set(PHASE1_EVENT_KEYS)
 
-# error_code do adapter → copy humana (25 §7)
+# error_code do adapter → copy humana (25 §7) — sem jargão técnico
 ERROR_COPY = {
     "credentials_invalid": "Não conseguimos acessar com essa chave. Confira e tente de novo.",
     "server_unreachable": "Não encontramos o servidor nesse endereço.",
-    "provider_timeout": "Sua Evolution demorou para responder. Tentar de novo?",
+    "provider_timeout": (
+        "O WhatsApp demorou para responder. Feche o WhatsApp Web no computador "
+        "e tente de novo — ou reconecte."
+    ),
     "session_disconnected": "Seu WhatsApp foi desconectado.",
+    "session_unstable": (
+        "Esse WhatsApp está em conflito com outro aparelho. "
+        "Feche o WhatsApp Web e reconecte."
+    ),
     "qr_expired": "Este QR Code expirou. Vamos gerar outro?",
-    "send_failed": "Não conseguimos enviar a mensagem.",
+    "send_failed": (
+        "Não conseguimos enviar a mensagem. Se o WhatsApp Web estiver aberto, "
+        "feche e reconecte."
+    ),
     "rate_limited": "Muitas tentativas. Aguarde um momento.",
     "unknown": "Algo deu errado. Tente de novo.",
 }
+
+# conflito típico: mesmo número no Web + no sistema
+SESSION_UNSTABLE_TITLE = "WhatsApp em conflito com outro aparelho"
+SESSION_UNSTABLE_BODY = (
+    "Esse número parece estar aberto no WhatsApp Web ou em outro celular "
+    "ao mesmo tempo. Enquanto isso, as mensagens automáticas podem falhar "
+    "mesmo com status “conectado”.\n\n"
+    "Para resolver:\n"
+    "1. No celular, abra WhatsApp → Aparelhos conectados\n"
+    "2. Desconecte os outros aparelhos (WhatsApp Web, computador, etc.)\n"
+    "3. Volte aqui e toque em Reconectar WhatsApp\n"
+    "4. Escaneie o QR Code só uma vez — e não abra o WhatsApp Web depois"
+)
+SESSION_UNSTABLE_ACTION = "Reconectar WhatsApp"
 
 
 def human_error(error_code: str | None) -> str:

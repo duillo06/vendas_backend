@@ -52,23 +52,35 @@ def send_dispatch(self, dispatch_id: str) -> None:
             "server_unreachable",
         ):
             raise self.retry(exc=exc) from exc
+        error_code = (
+            "session_unstable"
+            if exc.error_code in ("provider_timeout", "send_failed")
+            else exc.error_code
+        )
         dispatch.status = DispatchStatus.FAILED
-        dispatch.error_code = exc.error_code
-        dispatch.error_message = human_error(exc.error_code)
+        dispatch.error_code = error_code
+        dispatch.error_message = human_error(error_code)
         dispatch.save(
             update_fields=["status", "error_code", "error_message", "updated_at"],
         )
+        if error_code == "session_unstable":
+            from apps.communications.services.helpers import flag_session_unstable
+
+            flag_session_unstable(connection=connection)
         return
     except Exception as exc:
         logger.exception("erro ao enviar dispatch %s", dispatch_id)
         if self.request.retries < self.max_retries:
             raise self.retry(exc=exc) from exc
         dispatch.status = DispatchStatus.FAILED
-        dispatch.error_code = "send_failed"
-        dispatch.error_message = human_error("send_failed")
+        dispatch.error_code = "session_unstable"
+        dispatch.error_message = human_error("session_unstable")
         dispatch.save(
             update_fields=["status", "error_code", "error_message", "updated_at"],
         )
+        from apps.communications.services.helpers import flag_session_unstable
+
+        flag_session_unstable(connection=connection)
         return
 
     dispatch.status = DispatchStatus.SENT
@@ -84,6 +96,9 @@ def send_dispatch(self, dispatch_id: str) -> None:
             "updated_at",
         ],
     )
+    from apps.communications.services.helpers import resolve_connection_alerts
+
+    resolve_connection_alerts(connection=connection)
 
 
 @shared_task

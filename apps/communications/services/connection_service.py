@@ -16,10 +16,11 @@ from apps.communications.infrastructure.providers.registry import get_provider
 from apps.communications.models import CommunicationConnection
 from apps.communications.services.credentials import open_credentials, seal_credentials
 from apps.communications.services.helpers import (
+    ALERT_KIND_DISCONNECTED,
     ensure_templates_and_situations,
     format_phone_display,
     instance_name_for,
-    resolve_alert,
+    resolve_connection_alerts,
     upsert_alert,
 )
 from apps.companies.models import Company
@@ -217,8 +218,12 @@ class ConnectionService:
             upsert_alert(
                 tenant=connection.tenant,
                 connection=connection,
-                kind="whatsapp_disconnected",
+                kind=ALERT_KIND_DISCONNECTED,
                 title="Seu WhatsApp foi desconectado.",
+                body=(
+                    "Os pedidos continuam no sistema — só as mensagens automáticas "
+                    "pausam. Toque em Reconectar WhatsApp e escaneie o QR Code."
+                ),
                 action_hint="Reconectar WhatsApp",
             )
         return connection
@@ -239,11 +244,7 @@ class ConnectionService:
                 "updated_at",
             ],
         )
-        resolve_alert(
-            tenant=connection.tenant,
-            connection=connection,
-            kind="whatsapp_disconnected",
-        )
+        resolve_connection_alerts(connection=connection)
 
     @staticmethod
     def run_health_check(*, connection: CommunicationConnection) -> HealthSnapshot:
@@ -289,7 +290,8 @@ class ConnectionService:
             },
         )
 
-        # 3+4 sessão
+        # 3+4 sessão — se a Evolution diz open, alinha o status no banco
+        # (antes só marcava connected se o telefone ainda estava vazio)
         session_ok = False
         session_msg = ""
         messaging_ok = False
@@ -297,7 +299,7 @@ class ConnectionService:
             ctx = ConnectionService.build_ctx(connection)
             session = provider.get_session_status(ctx)
             session_ok = session.state == "connected"
-            if session_ok and session.phone_e164 and not connection.phone_e164:
+            if session_ok:
                 ConnectionService._mark_connected(connection, session.phone_e164)
             elif session.state == "disconnected":
                 connection.status = ConnectionStatus.DISCONNECTED
@@ -336,8 +338,12 @@ class ConnectionService:
             upsert_alert(
                 tenant=connection.tenant,
                 connection=connection,
-                kind="whatsapp_disconnected",
+                kind=ALERT_KIND_DISCONNECTED,
                 title="Seu WhatsApp foi desconectado.",
+                body=(
+                    "Os pedidos continuam no sistema — só as mensagens automáticas "
+                    "pausam. Toque em Reconectar WhatsApp e escaneie o QR Code."
+                ),
                 action_hint="Reconectar WhatsApp",
             )
 
@@ -387,7 +393,11 @@ class ConnectionService:
                     upsert_alert(
                         tenant=connection.tenant,
                         connection=connection,
-                        kind="whatsapp_disconnected",
+                        kind=ALERT_KIND_DISCONNECTED,
                         title="Seu WhatsApp foi desconectado.",
+                        body=(
+                            "Os pedidos continuam no sistema — só as mensagens automáticas "
+                            "pausam. Toque em Reconectar WhatsApp e escaneie o QR Code."
+                        ),
                         action_hint="Reconectar WhatsApp",
                     )
