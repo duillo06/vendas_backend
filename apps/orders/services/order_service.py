@@ -214,6 +214,8 @@ class OrderService:
         OrderService._record_status(order, None, OrderStatus.PENDING)
         CustomerService.record_order(customer=customer, total=total)
 
+        # pedido chegou → "Pedido recebido" (order.received)
+        transaction.on_commit(lambda o=order: _emit_order_communication(o))
         return order
 
     @staticmethod
