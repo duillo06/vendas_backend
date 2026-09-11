@@ -16,25 +16,40 @@ jobs:
     environment: production
 
     steps:
-      # i/o timeout em :22 costuma ser firewall/Hostinger ou blip de rede —
-      # tcp4 + timeout maior + retries cobrem o caso intermitente
+      # Sem wretry.action: o with:| reparseia YAML e a chave SSH multilinha quebra o parse.
+      # Retry manual com continue-on-error cobre timeout intermitente na :22.
       - name: Deploy via SSH
-        uses: Wandalen/wretry.action@v3.5.0
+        id: deploy
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.2.5
         with:
-          attempt_limit: 3
-          attempt_delay: 20000
-          action: appleboy/ssh-action@v1.2.5
-          with: |
-            host: ${{ secrets.PRODUCTION_HOST }}
-            username: ${{ secrets.PRODUCTION_USER }}
-            key: ${{ secrets.PRODUCTION_SSH_KEY }}
-            protocol: tcp4
-            timeout: 2m
-            command_timeout: 20m
-            script: |
-              set -euo pipefail
-              cd /opt/foodservice/vendas_backend
-              # confs geradas na VPS travam o git pull — descarta antes
-              git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
-              export DEPLOY_BRANCH=main
-              bash deploy/scripts/remote-deploy.sh
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          protocol: tcp4
+          timeout: 2m
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd /opt/foodservice/vendas_backend
+            # confs geradas na VPS travam o git pull — descarta antes
+            git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
+            export DEPLOY_BRANCH=main
+            bash deploy/scripts/remote-deploy.sh
+
+      - name: Deploy via SSH (retry)
+        if: steps.deploy.outcome == 'failure'
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          protocol: tcp4
+          timeout: 2m
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            cd /opt/foodservice/vendas_backend
+            git checkout -- deploy/nginx/default.conf deploy/caddy/Caddyfile 2>/dev/null || true
+            export DEPLOY_BRANCH=main
+            bash deploy/scripts/remote-deploy.sh
