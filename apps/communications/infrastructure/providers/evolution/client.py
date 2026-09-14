@@ -43,7 +43,7 @@ class EvolutionHttpClient:
 
         req = urllib.request.Request(url, data=data, headers=headers, method=method.upper())
         try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:  # nosec B310 — API Evolution https
                 raw = resp.read().decode("utf-8") or "{}"
                 try:
                     parsed = json.loads(raw)

@@ -108,7 +108,7 @@ class GeoService:
         )
 
         try:
-            with urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            with urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # nosec B310 — Nominatim https
                 import json
 
                 payload = json.loads(response.read().decode("utf-8"))

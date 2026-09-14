@@ -145,7 +145,7 @@ BEBIDAS: list[tuple[str, str, list[str], str]] = [
 def _download(url: str, timeout: int = 25) -> tuple[bytes, str] | None:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — só https de imagem
             data = resp.read()
             ctype = (resp.headers.get("Content-Type") or "image/jpeg").split(";")[0].strip().lower()
             if ctype not in {"image/jpeg", "image/png", "image/webp"}:

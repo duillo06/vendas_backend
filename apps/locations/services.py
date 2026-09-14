@@ -68,7 +68,7 @@ class LocationCatalogService:
             },
         )
         try:
-            with urlopen(request, timeout=IBGE_TIMEOUT_SECONDS) as response:
+            with urlopen(request, timeout=IBGE_TIMEOUT_SECONDS) as response:  # nosec B310 — IBGE https
                 raw = response.read()
                 if response.headers.get("Content-Encoding") == "gzip" or raw[:2] == b"\x1f\x8b":
                     raw = gzip.decompress(raw)
