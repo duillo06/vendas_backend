@@ -406,6 +406,71 @@ def test_copy_prices_same(phase3_setup):
 
 
 @pytest.mark.django_db
+def test_copy_prices_skips_options_outside_recipe(phase3_setup):
+    """Não copia preço de tamanho que a receita do target não oferece."""
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    pequena = phase3_setup["pequena"]
+    grande = phase3_setup["grande"]
+
+    litro = Option.all_objects.create(
+        tenant=company,
+        option_group=group,
+        name="1 litro",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+
+    source = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Calabresa",
+            "slug": "calabresa-copy-src",
+            "description": "",
+            "base_price": Decimal("40"),
+            "category_id": category.id,
+            "option_prices": [
+                {"option_id": str(grande.id), "price": "56"},
+                {"option_id": str(litro.id), "price": "12"},
+            ],
+        },
+    )
+    # receita sem litro
+    CategoryRecipeService.replace(
+        category,
+        data={
+            "capabilities": [
+                {"kind": "size", "enabled": True, "is_required": True, "sort_order": 0}
+            ],
+            "libraries": [
+                {
+                    "kind": "size",
+                    "option_group_id": str(group.id),
+                    "option_ids": [str(pequena.id), str(grande.id)],
+                }
+            ],
+            "apply_mode": "new_only",
+        },
+    )
+    target = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Frango",
+            "slug": "frango-copy-tgt",
+            "description": "",
+            "base_price": Decimal("38"),
+            "category_id": category.id,
+        },
+    )
+
+    count = ProductPriceCopyService.copy(target=target, source=source, mode="same")
+    assert count == 1
+    assert ProductOptionPrice.all_objects.filter(product=target, option=grande).exists()
+    assert not ProductOptionPrice.all_objects.filter(product=target, option=litro).exists()
+
+
+@pytest.mark.django_db
 def test_selection_rejects_option_outside_recipe(phase3_setup):
     """Checkout não aceita tamanho da biblioteca que a receita não oferece."""
     from apps.catalog.domain.exceptions import InvalidOptionSelection

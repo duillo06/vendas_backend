@@ -6,6 +6,7 @@ from django.db import transaction
 
 from apps.catalog.models import Product, ProductOptionPrice
 from apps.catalog.services.catalog_cache import invalidate_product_cache
+from apps.catalog.services.materialize_service import MaterializeService
 from apps.catalog.services.product_option_price_service import ProductOptionPriceService
 
 
@@ -27,7 +28,7 @@ class ProductPriceCopyService:
         percent: Decimal | None = None,
         fixed: Decimal | None = None,
     ) -> int:
-        """mode: same | percent | fixed — só opções que o target também usa."""
+        """mode: same | percent | fixed — só opções que o target oferece (receita)."""
         if source.tenant_id != target.tenant_id:
             raise ProductPriceCopyError("Produtos de estabelecimentos diferentes")
         if str(source.id) == str(target.id):
@@ -39,16 +40,29 @@ class ProductPriceCopyService:
         if not source_rows:
             raise ProductPriceCopyError("Esse produto ainda não tem preços de opção")
 
-        # opções vinculadas ao target (via grupos)
-        target_option_ids = set()
-        for link in target.product_option_groups.select_related("option_group").all():
-            for opt in link.option_group.options.all():
-                target_option_ids.add(str(opt.id))
+        # opções que o target oferece de verdade (receita − exclusões, não o grupo inteiro)
+        from apps.catalog.models import ProductOptionGroup
+
+        target_option_ids: set[str] = set()
+        links = (
+            ProductOptionGroup.all_objects.filter(product=target)
+            .select_related("option_group")
+            .prefetch_related("option_group__options")
+        )
+        for link in links:
+            group = link.option_group
+            visible = MaterializeService.visible_option_ids(target, group.id)
+            if visible is None:
+                for opt in group.options.all():
+                    if opt.is_active:
+                        target_option_ids.add(str(opt.id))
+            else:
+                target_option_ids |= visible
 
         entries = []
         for row in source_rows:
             oid = str(row["option_id"])
-            if target_option_ids and oid not in target_option_ids:
+            if oid not in target_option_ids:
                 continue
             price = Decimal(row["price"])
             if mode == "percent":

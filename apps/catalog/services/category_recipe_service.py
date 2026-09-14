@@ -98,6 +98,7 @@ class CategoryRecipeService:
 
         apply_mode: new_only (padrão) | all | later
         — all rematerializa produtos (cria vínculos; poda preço/vínculo fora da receita).
+        — later = igual new_only (salva receita; sem fila de pendência).
         """
         capabilities = data.get("capabilities") or []
         libraries = data.get("libraries") or []
