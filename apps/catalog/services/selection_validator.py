@@ -57,6 +57,10 @@ class SelectionValidator:
                 raise InvalidOptionSelection(f"Seleção inválida em {group.name}")
 
             option_ids = [item["option_id"] for item in normalized]
+            # mesma regra do cardápio público — receita − exclusões (+ preço no produto)
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            visible = MaterializeService.visible_option_ids(product, group.id)
             options = {
                 str(option.id): option
                 for option in Option.all_objects.filter(
@@ -65,6 +69,7 @@ class SelectionValidator:
                     is_active=True,
                     is_available=True,
                 )
+                if visible is None or str(option.id) in visible
             }
 
             if len(options) != len(set(option_ids)):

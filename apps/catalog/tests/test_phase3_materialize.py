@@ -202,3 +202,78 @@ def test_copy_prices_same(phase3_setup):
     assert count >= 1
     row = ProductOptionPrice.all_objects.get(product=target, option=grande)
     assert row.price == Decimal("15.00")
+
+
+@pytest.mark.django_db
+def test_selection_rejects_option_outside_recipe(phase3_setup):
+    """Checkout não aceita tamanho da biblioteca que a receita não oferece."""
+    from apps.catalog.domain.exceptions import InvalidOptionSelection
+    from apps.catalog.services.selection_validator import SelectionValidator
+
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    grande = phase3_setup["grande"]
+
+    litro = Option.all_objects.create(
+        tenant=company,
+        option_group=group,
+        name="1 litro",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+
+    product = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Calabresa",
+            "slug": "calabresa-sel",
+            "description": "",
+            "base_price": Decimal("40"),
+            "category_id": category.id,
+            "option_prices": [{"option_id": str(grande.id), "price": "56"}],
+        },
+    )
+
+    ok = SelectionValidator.validate(
+        product,
+        {str(group.id): [{"option_id": str(grande.id), "quantity": 1}]},
+    )
+    assert len(ok) == 1
+
+    with pytest.raises(InvalidOptionSelection):
+        SelectionValidator.validate(
+            product,
+            {str(group.id): [{"option_id": str(litro.id), "quantity": 1}]},
+        )
+
+
+@pytest.mark.django_db
+def test_selection_rejects_excluded_option(phase3_setup):
+    from apps.catalog.domain.exceptions import InvalidOptionSelection
+    from apps.catalog.services.selection_validator import SelectionValidator
+
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    pequena = phase3_setup["pequena"]
+    grande = phase3_setup["grande"]
+
+    product = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Mussarela",
+            "slug": "mussarela-sel",
+            "description": "",
+            "base_price": Decimal("35"),
+            "category_id": category.id,
+            "option_exclusions": [str(grande.id)],
+            "option_prices": [{"option_id": str(pequena.id), "price": "30"}],
+        },
+    )
+
+    with pytest.raises(InvalidOptionSelection):
+        SelectionValidator.validate(
+            product,
+            {str(group.id): [{"option_id": str(grande.id), "quantity": 1}]},
+        )
