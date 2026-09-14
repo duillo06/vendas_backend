@@ -171,6 +171,156 @@ def test_apply_mode_all_rematerializes(phase3_setup):
 
 
 @pytest.mark.django_db
+def test_apply_mode_all_prunes_orphan_prices(phase3_setup):
+    """Desmarcar tamanho na receita + atualizar todos remove preço órfão do produto."""
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    pequena = phase3_setup["pequena"]
+    grande = phase3_setup["grande"]
+
+    litro = Option.all_objects.create(
+        tenant=company,
+        option_group=group,
+        name="1 litro",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+
+    product = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Calabresa",
+            "slug": "calabresa-prune",
+            "description": "",
+            "base_price": Decimal("40"),
+            "category_id": category.id,
+            "option_prices": [
+                {"option_id": str(grande.id), "price": "56"},
+                {"option_id": str(litro.id), "price": "0"},
+            ],
+        },
+    )
+    assert ProductOptionPrice.all_objects.filter(product=product).count() == 2
+
+    # receita encolhe: só Pequena e Grande (litro fora)
+    result = CategoryRecipeService.replace(
+        category,
+        data={
+            "capabilities": [
+                {"kind": "size", "enabled": True, "is_required": True, "sort_order": 0}
+            ],
+            "libraries": [
+                {
+                    "kind": "size",
+                    "option_group_id": str(group.id),
+                    "option_ids": [str(pequena.id), str(grande.id)],
+                }
+            ],
+            "apply_mode": "all",
+        },
+    )
+    assert result["apply_result"]["pruned_prices"] >= 1
+
+    remaining = list(
+        ProductOptionPrice.all_objects.filter(product=product).values_list(
+            "option_id", flat=True
+        )
+    )
+    assert str(grande.id) in [str(oid) for oid in remaining]
+    assert str(litro.id) not in [str(oid) for oid in remaining]
+    # preço do que continua na receita fica
+    assert ProductOptionPrice.all_objects.get(
+        product=product, option=grande
+    ).price == Decimal("56")
+
+
+@pytest.mark.django_db
+def test_apply_mode_all_removes_stale_group_link(phase3_setup):
+    """Tirar a biblioteca da receita remove o vínculo órfão do produto."""
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    grande = phase3_setup["grande"]
+
+    crust = OptionGroup.all_objects.create(
+        tenant=company,
+        name="Borda",
+        selection_type="single",
+        min_selections=0,
+        max_selections=1,
+        is_required=False,
+        kind="crust",
+    )
+    catupiry = Option.all_objects.create(
+        tenant=company,
+        option_group=crust,
+        name="Catupiry",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+
+    # receita com tamanho + borda
+    CategoryRecipeService.replace(
+        category,
+        data={
+            "capabilities": [
+                {"kind": "size", "enabled": True, "is_required": True, "sort_order": 0},
+                {"kind": "crust", "enabled": True, "is_required": False, "sort_order": 1},
+            ],
+            "libraries": [
+                {
+                    "kind": "size",
+                    "option_group_id": str(group.id),
+                    "option_ids": [str(grande.id)],
+                },
+                {
+                    "kind": "crust",
+                    "option_group_id": str(crust.id),
+                    "option_ids": [str(catupiry.id)],
+                },
+            ],
+            "apply_mode": "new_only",
+        },
+    )
+
+    product = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Frango",
+            "slug": "frango-stale",
+            "description": "",
+            "base_price": Decimal("38"),
+            "category_id": category.id,
+            "option_prices": [{"option_id": str(grande.id), "price": "50"}],
+        },
+    )
+    assert ProductOptionGroup.all_objects.filter(product=product).count() == 2
+
+    # receita sem borda
+    result = CategoryRecipeService.replace(
+        category,
+        data={
+            "capabilities": [
+                {"kind": "size", "enabled": True, "is_required": True, "sort_order": 0}
+            ],
+            "libraries": [
+                {
+                    "kind": "size",
+                    "option_group_id": str(group.id),
+                    "option_ids": [str(grande.id)],
+                }
+            ],
+            "apply_mode": "all",
+        },
+    )
+    assert result["apply_result"]["removed_links"] >= 1
+    links = ProductOptionGroup.all_objects.filter(product=product)
+    assert links.count() == 1
+    assert str(links.first().option_group_id) == str(group.id)
+
+
+@pytest.mark.django_db
 def test_copy_prices_same(phase3_setup):
     company = phase3_setup["company"]
     category = phase3_setup["category"]

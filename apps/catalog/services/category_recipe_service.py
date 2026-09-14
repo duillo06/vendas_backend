@@ -97,7 +97,7 @@ class CategoryRecipeService:
         """Troca a receita inteira (após resumo no assistente).
 
         apply_mode: new_only (padrão) | all | later
-        — all rematerializa produtos existentes (preços/exclusões ficam).
+        — all rematerializa produtos (cria vínculos; poda preço/vínculo fora da receita).
         """
         capabilities = data.get("capabilities") or []
         libraries = data.get("libraries") or []
