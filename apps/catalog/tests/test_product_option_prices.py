@@ -160,3 +160,43 @@ def test_admin_patch_option_prices(api_client, price_setup):
         for row in body["option_prices"]
     )
     assert ProductOptionPrice.all_objects.get(product=product, option=grande).price == Decimal("22")
+
+
+@pytest.mark.django_db
+def test_update_option_prices_replace_drops_orphans(price_setup):
+    """PATCH com snapshot completo remove preço de tamanho que não veio na lista."""
+    product = price_setup["product_a"]
+    grande = price_setup["grande"]
+    group = price_setup["group"]
+    company = price_setup["company"]
+
+    litro = Option.all_objects.create(
+        tenant=company,
+        option_group=group,
+        name="1 litro",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+    ProductOptionPrice.all_objects.create(
+        tenant=company,
+        product=product,
+        option=litro,
+        price=Decimal("0"),
+    )
+    assert ProductOptionPrice.all_objects.filter(product=product).count() == 2
+
+    ProductService.update(
+        product=product,
+        data={
+            "option_prices": [{"option_id": str(grande.id), "price": "56.00"}],
+        },
+    )
+
+    remaining = list(
+        ProductOptionPrice.all_objects.filter(product=product).values_list(
+            "option_id", "price"
+        )
+    )
+    assert len(remaining) == 1
+    assert str(remaining[0][0]) == str(grande.id)
+    assert remaining[0][1] == Decimal("56.00")

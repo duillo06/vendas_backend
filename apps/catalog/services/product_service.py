@@ -126,7 +126,8 @@ class ProductService:
         if option_prices is not None:
             from apps.catalog.services.product_option_price_service import ProductOptionPriceService
 
-            ProductOptionPriceService.sync(product, option_prices, replace=False)
+            # snapshot completo do client — apaga órfão (tamanho fora da receita etc.)
+            ProductOptionPriceService.sync(product, option_prices, replace=True)
 
         if option_exclusions is not None:
             from apps.catalog.services.product_option_exclusion_service import (
