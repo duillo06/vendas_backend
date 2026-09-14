@@ -321,6 +321,57 @@ def test_apply_mode_all_removes_stale_group_link(phase3_setup):
 
 
 @pytest.mark.django_db
+def test_visible_option_ids_empty_when_group_not_in_recipe(phase3_setup):
+    """Vínculo órfão + categoria com receita → set vazio (não libera o grupo inteiro)."""
+    company = phase3_setup["company"]
+    category = phase3_setup["category"]
+    group = phase3_setup["group"]
+    grande = phase3_setup["grande"]
+
+    crust = OptionGroup.all_objects.create(
+        tenant=company,
+        name="Borda",
+        selection_type="single",
+        min_selections=0,
+        max_selections=1,
+        is_required=False,
+        kind="crust",
+    )
+    Option.all_objects.create(
+        tenant=company,
+        option_group=crust,
+        name="Catupiry",
+        price_modifier=Decimal("0"),
+        price_type=OptionPriceType.FIXED,
+    )
+
+    product = ProductService.create(
+        tenant=company,
+        data={
+            "name": "Calabresa",
+            "slug": "calabresa-orphan-vis",
+            "description": "",
+            "base_price": Decimal("40"),
+            "category_id": category.id,
+            "option_prices": [{"option_id": str(grande.id), "price": "56"}],
+        },
+    )
+    # simula vínculo órfão (receita só tem tamanho; borda grudada no produto)
+    ProductOptionGroup.all_objects.create(
+        tenant_id=company.id,
+        product=product,
+        option_group=crust,
+        sort_order=9,
+    )
+
+    assert MaterializeService.visible_option_ids(product, group.id) == {
+        str(phase3_setup["pequena"].id),
+        str(grande.id),
+    }
+    assert MaterializeService.visible_option_ids(product, crust.id) == set()
+
+
+@pytest.mark.django_db
 def test_copy_prices_same(phase3_setup):
     company = phase3_setup["company"]
     category = phase3_setup["category"]

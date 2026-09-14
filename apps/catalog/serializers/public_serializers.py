@@ -167,6 +167,10 @@ class OptionGroupPublicSerializer(serializers.Serializer):
             if data is not None:
                 options.append(data)
 
+        # filtro da receita zerou o grupo (vínculo órfão) — some do cardápio
+        if visible is not None and not options:
+            return None
+
         return {
             "id": str(group.id),
             "name": effective["name"],

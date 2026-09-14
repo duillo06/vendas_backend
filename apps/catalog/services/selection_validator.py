@@ -38,6 +38,16 @@ class SelectionValidator:
                     raise InvalidOptionSelection(f"Seleção inválida em {group.name}")
                 continue
 
+            # mesma regra do cardápio — receita − exclusões (+ preço no produto)
+            from apps.catalog.services.materialize_service import MaterializeService
+
+            visible = MaterializeService.visible_option_ids(product, group.id)
+            # vínculo órfão (receita sem este grupo) — some do checkout
+            if visible is not None and len(visible) == 0:
+                if raw_items:
+                    raise InvalidOptionSelection(f"Opção inválida em {group.name}")
+                continue
+
             normalized = SelectionValidator._normalize_items(raw_items, effective["selection_mode"])
             count = SelectionValidator._selection_count(normalized, effective["selection_mode"])
 
@@ -57,10 +67,6 @@ class SelectionValidator:
                 raise InvalidOptionSelection(f"Seleção inválida em {group.name}")
 
             option_ids = [item["option_id"] for item in normalized]
-            # mesma regra do cardápio público — receita − exclusões (+ preço no produto)
-            from apps.catalog.services.materialize_service import MaterializeService
-
-            visible = MaterializeService.visible_option_ids(product, group.id)
             options = {
                 str(option.id): option
                 for option in Option.all_objects.filter(

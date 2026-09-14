@@ -193,7 +193,11 @@ class MaterializeService:
 
     @staticmethod
     def visible_option_ids(product: Product, option_group_id) -> set[str] | None:
-        """None = todas as opções do grupo; set = filtrar (receita − exclusões + preços do produto)."""
+        """None = todas as opções do grupo; set = filtrar (receita − exclusões + preços).
+
+        Se a categoria tem receita e este grupo não está nela, devolve set vazio —
+        vínculo órfão não pode liberar a biblioteca inteira no cardápio.
+        """
         library = (
             CategoryLibrary.all_objects.filter(
                 category_id=product.category_id,
@@ -202,6 +206,12 @@ class MaterializeService:
             .first()
         )
         if not library:
+            # receita existe, mas este grupo saiu — não mostra nada deste grupo
+            has_recipe = CategoryLibrary.all_objects.filter(
+                category_id=product.category_id,
+            ).exists()
+            if has_recipe:
+                return set()
             return None
 
         items = list(
@@ -210,7 +220,7 @@ class MaterializeService:
             )
         )
         if not items:
-            return None
+            return set()
 
         allowed = {str(oid) for oid in items}
         # preço neste produto = também oferece, mesmo se a receita da categoria não listou
