@@ -13,6 +13,16 @@ CACHES = {  # noqa: F811
     }
 }
 
+# suite grande no CI — sem isso login/checkout estouram 20–40/min e dá 429
+REST_FRAMEWORK = {  # noqa: F811
+    **REST_FRAMEWORK,  # noqa: F405
+    "DEFAULT_THROTTLE_RATES": {
+        "auth_login": "10000/min",
+        "checkout": "10000/min",
+        "whatsapp_test": "10000/min",
+    },
+}
+
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]
