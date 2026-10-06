@@ -222,7 +222,7 @@ class OrderService:
     def get_public_order(*, tenant: Company, order_id) -> Order:
         return (
             Order.objects.filter(id=order_id, tenant=tenant)
-            .prefetch_related("items__options", "status_history", "payment")
+            .prefetch_related("items__options", "items__components", "status_history", "payment")
             .get()
         )
 
@@ -231,7 +231,7 @@ class OrderService:
         return (
             Order.objects.filter(id=order_id, tenant=tenant)
             .select_related("customer", "payment")
-            .prefetch_related("items__options", "status_history__changed_by")
+            .prefetch_related("items__options", "items__components", "status_history__changed_by")
             .get()
         )
 
@@ -300,17 +300,34 @@ class OrderService:
 
     @staticmethod
     def _generate_order_number(tenant: Company) -> str:
-        last = (
-            Order.all_objects.filter(tenant=tenant)
-            .order_by("-created_at")
-            .values_list("order_number", flat=True)
-            .first()
-        )
-        if last:
-            num = int(last.replace("#", "")) + 1
+        """Próximo #NNNN do tenant — max numérico, não o último created_at
+        (seed com datas antigas quebrava a sequência)."""
+        from django.db import connection
+
+        # serializa geração por tenant (mesmo com tabela vazia, no Postgres)
+        if connection.vendor == "postgresql":
+            lock_key = (tenant.id.int % (2**31 - 1)) or 1
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
         else:
-            num = 1
-        return f"#{num:04d}"
+            # SQLite (testes): trava o que existir; race vazia é ok em unit test
+            list(
+                Order.all_objects.select_for_update()
+                .filter(tenant=tenant)
+                .order_by("pk")[:1]
+            )
+
+        max_num = 0
+        for raw in (
+            Order.all_objects.filter(tenant=tenant)
+            .values_list("order_number", flat=True)
+            .iterator(chunk_size=500)
+        ):
+            try:
+                max_num = max(max_num, int(str(raw).lstrip("#")))
+            except (TypeError, ValueError):
+                continue
+        return f"#{max_num + 1:04d}"
 
     @staticmethod
     def _record_status(order: Order, from_status: str | None, to_status: str, employee=None, notes=None):

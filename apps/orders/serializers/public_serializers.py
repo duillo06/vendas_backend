@@ -126,6 +126,7 @@ class OrderItemPublicSerializer(serializers.Serializer):
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2)
     notes = serializers.CharField()
     options = serializers.SerializerMethodField()
+    components = serializers.SerializerMethodField()
 
     def get_options(self, obj):
         return [
@@ -136,6 +137,17 @@ class OrderItemPublicSerializer(serializers.Serializer):
                 "quantity": opt.quantity,
             }
             for opt in obj.options.all()
+        ]
+
+    def get_components(self, obj):
+        return [
+            {
+                "product_id": str(comp.product_id) if comp.product_id else None,
+                "product_name": comp.product_name,
+                "base_price": float(comp.base_price),
+                "sort_order": comp.sort_order,
+            }
+            for comp in obj.components.all()
         ]
 
 

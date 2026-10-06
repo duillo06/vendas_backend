@@ -60,6 +60,75 @@ def test_checkout_happy_path(api_client, demo_store, x_burger_option_ids):
 
 @pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_order_number_uses_max_not_latest_created_at(
+    api_client, demo_store, x_burger_option_ids,
+):
+    """Seed com created_at antigo + nº alto não pode reutilizar o próximo nº."""
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from django.utils import timezone
+
+    from apps.customers.models import Customer
+    from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus
+    from apps.orders.models import Order
+
+    product_id, options = x_burger_option_ids
+    customer = Customer.all_objects.create(
+        tenant=demo_store,
+        first_name="Cliente",
+        last_name="Seed",
+        phone="11999990000",
+    )
+    old = timezone.now() - timedelta(days=3)
+    Order.all_objects.create(
+        tenant=demo_store,
+        customer=customer,
+        order_number="#0008",
+        status=OrderStatus.COMPLETED,
+        delivery_type=DeliveryType.PICKUP,
+        subtotal=Decimal("10.00"),
+        delivery_fee=Decimal("0.00"),
+        total=Decimal("10.00"),
+        customer_name="Cliente Seed",
+        customer_phone="11999990000",
+        source=OrderSource.STOREFRONT,
+        created_at=old,
+    )
+    Order.all_objects.create(
+        tenant=demo_store,
+        customer=customer,
+        order_number="#0007",
+        status=OrderStatus.COMPLETED,
+        delivery_type=DeliveryType.PICKUP,
+        subtotal=Decimal("10.00"),
+        delivery_fee=Decimal("0.00"),
+        total=Decimal("10.00"),
+        customer_name="Cliente Seed",
+        customer_phone="11999990000",
+        source=OrderSource.STOREFRONT,
+        created_at=timezone.now() - timedelta(minutes=1),
+    )
+
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {
+            "customer_name": "Maria Santos",
+            "customer_phone": "(11) 98765-4321",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+        },
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 201
+    assert response.json()["order_number"] == "#0009"
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
 def test_checkout_rejects_over_max_quantity_per_order(api_client, demo_store, x_burger_option_ids):
     from apps.catalog.models import Product
 

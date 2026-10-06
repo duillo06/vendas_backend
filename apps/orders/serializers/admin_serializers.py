@@ -120,6 +120,15 @@ class OrderDetailSerializer(serializers.ModelSerializer):
                         }
                         for opt in item.options.all()
                     ],
+                    "components": [
+                        {
+                            "product_id": str(comp.product_id) if comp.product_id else None,
+                            "product_name": comp.product_name,
+                            "base_price": float(comp.base_price),
+                            "sort_order": comp.sort_order,
+                        }
+                        for comp in item.components.all()
+                    ],
                 }
                 for item in instance.items.all()
             ],

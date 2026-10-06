@@ -281,18 +281,17 @@ class Command(BaseCommand):
         return count
 
     def _next_order_number(self, company: Company) -> int:
-        last = (
+        max_num = 0
+        for raw in (
             Order.all_objects.filter(tenant=company)
-            .order_by("-created_at")
             .values_list("order_number", flat=True)
-            .first()
-        )
-        if not last:
-            return 1
-        try:
-            return int(str(last).replace("#", "")) + 1
-        except ValueError:
-            return Order.all_objects.filter(tenant=company).count() + 1
+            .iterator(chunk_size=500)
+        ):
+            try:
+                max_num = max(max_num, int(str(raw).lstrip("#")))
+            except (TypeError, ValueError):
+                continue
+        return max_num + 1
 
     def _orders_for_day(self, day, per_day: int, *, is_today: bool) -> int:
         weight = WEEKDAY_WEIGHT[day.weekday()]
