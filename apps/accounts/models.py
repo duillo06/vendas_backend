@@ -15,6 +15,8 @@ class Employee(TenantAwareModel):
     is_active = models.BooleanField(default=True)
     is_owner = models.BooleanField(default=False)
     last_login_at = models.DateTimeField(blank=True, null=True)
+    # prefs do painel (ordem dos widgets, etc.) — por funcionário
+    preferences = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "employees"

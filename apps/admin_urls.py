@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.accounts.views.auth_views import MeView
+from apps.accounts.views.auth_views import MeView, PreferencesView
 from apps.catalog.views.admin_views import (
     AdminCategoryViewSet,
     AdminOptionGroupViewSet,
@@ -38,6 +38,7 @@ from apps.promotions.views.admin_views import AdminCampaignViewSet
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="admin-me"),
+    path("me/preferences/", PreferencesView.as_view(), name="admin-me-preferences"),
     path("dashboard/", AdminDashboardView.as_view(), name="admin-dashboard"),
     path("settings/", AdminSettingsView.as_view(), name="admin-settings"),
     path("settings/logo/", AdminLogoUploadView.as_view(), name="admin-settings-logo"),

@@ -5,6 +5,7 @@ from apps.accounts.views.auth_views import (
     LoginView,
     LogoutView,
     MeView,
+    PreferencesView,
     RefreshView,
 )
 from apps.accounts.views.customer_auth_views import (
@@ -19,6 +20,7 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("me/", MeView.as_view(), name="auth-me"),
+    path("me/preferences/", PreferencesView.as_view(), name="auth-me-preferences"),
     path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("customer/register/", CustomerRegisterView.as_view(), name="customer-register"),
     path("customer/login/", CustomerLoginView.as_view(), name="customer-login"),

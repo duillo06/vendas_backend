@@ -154,3 +154,56 @@ def test_admin_dashboard_with_orders(api_client, demo_admin):
     assert "total_orders" in body["yesterday"]
     assert "revenue" in body["yesterday"]
     assert len(body["recent_orders"]) == 2
+    assert body["period"] == "today"
+    assert "kpis" in body
+    assert body["kpis"]["orders"]["value"] == 2
+    assert "series" in body
+    assert body["series"]["granularity"] == "hour"
+    assert "by_hour" in body
+    assert "by_weekday" in body
+    assert "by_payment_method" in body
+    assert "operational" in body
+    assert "top_products" in body
+    assert "slow_products" in body
+    assert "by_delivery_type" in body
+    assert "customers" in body
+    assert "cancellation_rate" in body["kpis"]
+
+
+@pytest.mark.django_db
+def test_admin_dashboard_period_7d(api_client, demo_admin):
+    login = _login(api_client)
+    response = api_client.get(
+        "/api/v1/admin/dashboard/?period=7d",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["period"] == "7d"
+    assert body["series"]["granularity"] == "day"
+    assert len(body["series"]["current"]) == 7
+
+
+@pytest.mark.django_db
+def test_admin_dashboard_period_invalid(api_client, demo_admin):
+    login = _login(api_client)
+    response = api_client.get(
+        "/api/v1/admin/dashboard/?period=year",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_admin_dashboard_period_custom(api_client, demo_admin):
+    login = _login(api_client)
+    response = api_client.get(
+        "/api/v1/admin/dashboard/?period=custom&from=2026-09-01&to=2026-09-15",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["period"] == "custom"
+    assert body["period_range"]["start"] == "2026-09-01"
+    assert body["period_range"]["end"] == "2026-09-15"
+    assert body["series"]["granularity"] == "day"

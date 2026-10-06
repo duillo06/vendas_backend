@@ -14,6 +14,7 @@ from apps.accounts.serializers.employee_serializers import (
     RefreshSerializer,
 )
 from apps.accounts.services.auth_service import AuthService
+from apps.accounts.services.preferences_service import PreferencesService
 from core.throttling import AuthLoginThrottle
 
 
@@ -85,8 +86,30 @@ class MeView(APIView):
                     context={"permissions": permissions},
                 ).data,
                 "tenant": CompanyMinimalSerializer(employee.tenant).data,
+                "preferences": PreferencesService.get(employee),
             }
         )
+
+
+class PreferencesView(APIView):
+    """Lê/atualiza preferências do funcionário logado (layout do dashboard etc.)."""
+
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def get(self, request):
+        principal: EmployeePrincipal = request.user
+        return Response(PreferencesService.get(principal.employee))
+
+    def patch(self, request):
+        if not isinstance(request.data, dict):
+            return Response(
+                {"detail": "Body deve ser um objeto JSON."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        principal: EmployeePrincipal = request.user
+        updated = PreferencesService.update(principal.employee, request.data)
+        return Response(updated)
 
 
 class ChangePasswordView(APIView):

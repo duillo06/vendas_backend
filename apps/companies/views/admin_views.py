@@ -109,8 +109,50 @@ class AdminDashboardView(APIView):
         if not HasPermission("dashboard.view").has_permission(request, self):
             return Response(status=status.HTTP_403_FORBIDDEN)
 
+        from datetime import date as date_cls
+
+        period = request.query_params.get("period", "today")
+        if period not in ("today", "7d", "30d", "custom"):
+            return Response(
+                {"detail": "period inválido. Use today, 7d, 30d ou custom."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from_date = None
+        to_date = None
+        if period == "custom":
+            raw_from = request.query_params.get("from")
+            raw_to = request.query_params.get("to")
+            if not raw_from or not raw_to:
+                return Response(
+                    {"detail": "period=custom exige from e to (YYYY-MM-DD)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            try:
+                from_date = date_cls.fromisoformat(raw_from)
+                to_date = date_cls.fromisoformat(raw_to)
+            except ValueError:
+                return Response(
+                    {"detail": "from/to inválidos. Use YYYY-MM-DD."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if from_date > to_date:
+                return Response(
+                    {"detail": "from não pode ser depois de to."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if (to_date - from_date).days > 90:
+                return Response(
+                    {"detail": "Intervalo máximo de 90 dias."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         company = request.user.employee.tenant
-        return Response(DashboardService.get_dashboard(company))
+        return Response(
+            DashboardService.get_dashboard(
+                company, period=period, from_date=from_date, to_date=to_date
+            )
+        )
 
 
 class AdminSetupView(APIView):

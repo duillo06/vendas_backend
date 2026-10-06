@@ -35,6 +35,42 @@ def test_admin_me_with_token(api_client, demo_with_owner):
     assert response.status_code == 200
     assert response.json()["user"]["email"] == "admin@demo.com"
     assert response.json()["tenant"]["subdomain"] == "demo"
+    assert "preferences" in response.json()
+    assert "dashboard" in response.json()["preferences"]
+    assert "widget_order" in response.json()["preferences"]["dashboard"]
+
+
+@pytest.mark.django_db
+def test_preferences_patch_dashboard_order(api_client, demo_with_owner):
+    login = api_client.post(
+        "/api/v1/auth/login/",
+        {"email": "admin@demo.com", "password": "demo1234", "subdomain": "demo"},
+        format="json",
+    ).json()
+
+    response = api_client.patch(
+        "/api/v1/auth/me/preferences/",
+        {
+            "dashboard": {
+                "widget_order": ["top_products", "sales", "customers"],
+                "hidden_widgets": ["slow_products"],
+            }
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dashboard"]["widget_order"][0] == "top_products"
+    assert "sales" in body["dashboard"]["widget_order"]
+    assert "slow_products" in body["dashboard"]["hidden_widgets"]
+
+    again = api_client.get(
+        "/api/v1/auth/me/preferences/",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert again.status_code == 200
+    assert again.json()["dashboard"]["widget_order"][0] == "top_products"
 
 
 @pytest.mark.django_db

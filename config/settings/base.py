@@ -105,7 +105,7 @@ REST_FRAMEWORK = {
         "rest_framework.renderers.JSONRenderer",
     ],
     "DEFAULT_PAGINATION_CLASS": "core.pagination.StandardPagination",
-    "PAGE_SIZE": 20,
+    "PAGE_SIZE": 30,
     "EXCEPTION_HANDLER": "core.exceptions.handlers.custom_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "auth_login": "20/min",
