@@ -55,12 +55,16 @@ class CheckoutItemSerializer(serializers.Serializer):
 
 
 class CheckoutSerializer(serializers.Serializer):
-    customer_name = serializers.CharField(min_length=2, max_length=200)
-    customer_phone = serializers.CharField(max_length=20)
+    customer_name = serializers.CharField(min_length=2, max_length=200, required=False, allow_blank=True)
+    customer_phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
     customer_email = serializers.EmailField(required=False, allow_blank=True)
     customer_id = serializers.UUIDField(required=False, allow_null=True)
     delivery_type = serializers.ChoiceField(choices=DeliveryType.choices)
-    payment_method = serializers.ChoiceField(choices=PaymentMethod.choices)
+    payment_method = serializers.ChoiceField(
+        choices=PaymentMethod.choices,
+        required=False,
+        allow_null=True,
+    )
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
     change_for = serializers.DecimalField(
         max_digits=10,
@@ -69,6 +73,8 @@ class CheckoutSerializer(serializers.Serializer):
         allow_null=True,
     )
     address = CheckoutAddressSerializer(required=False, allow_null=True)
+    table_id = serializers.UUIDField(required=False, allow_null=True)
+    qr_token = serializers.CharField(required=False, allow_blank=True, max_length=64)
     items = CheckoutItemSerializer(many=True, min_length=1)
 
     def validate(self, attrs):
@@ -76,13 +82,39 @@ class CheckoutSerializer(serializers.Serializer):
         address = attrs.get("address")
         payment_method = attrs.get("payment_method")
         change_for = attrs.get("change_for")
+        table_id = attrs.get("table_id")
+        qr_token = (attrs.get("qr_token") or "").strip() or None
+        attrs["qr_token"] = qr_token
 
         if delivery_type == DeliveryType.DELIVERY and not address:
             raise serializers.ValidationError({"address": "Endereço obrigatório para entrega"})
 
-        if delivery_type == DeliveryType.PICKUP:
+        if delivery_type in (DeliveryType.PICKUP, DeliveryType.DINE_IN):
             attrs["address"] = None
 
+        if delivery_type == DeliveryType.DINE_IN:
+            if not table_id and not qr_token:
+                raise serializers.ValidationError(
+                    {"table_id": "Informe a mesa ou escaneie o QR"}
+                )
+            # salão: nome/fone/pagamento opcionais — o service preenche
+            if not payment_method:
+                attrs["payment_method"] = PaymentMethod.PAY_AT_VENUE
+            attrs["change_for"] = None
+            attrs["customer_email"] = None
+        else:
+            attrs["table_id"] = None
+            attrs["qr_token"] = None
+            name = (attrs.get("customer_name") or "").strip()
+            phone = (attrs.get("customer_phone") or "").strip()
+            if len(name) < 2:
+                raise serializers.ValidationError({"customer_name": "Informe seu nome"})
+            if not phone:
+                raise serializers.ValidationError({"customer_phone": "Informe um celular"})
+            if not payment_method:
+                raise serializers.ValidationError({"payment_method": "Escolha a forma de pagamento"})
+
+        payment_method = attrs.get("payment_method")
         if payment_method == PaymentMethod.CASH:
             if change_for is None:
                 raise serializers.ValidationError({"change_for": "Informe o valor para troco"})
@@ -174,6 +206,7 @@ class OrderPublicSerializer(serializers.ModelSerializer):
             "order_number",
             "status",
             "delivery_type",
+            "table_number",
             "customer_name",
             "customer_phone",
             "subtotal",
@@ -192,6 +225,7 @@ class OrderPublicSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["id"] = str(instance.id)
+        data["table_number"] = instance.table_number
         data["subtotal"] = float(instance.subtotal)
         data["discount"] = float(instance.discount)
         data["delivery_fee"] = float(instance.delivery_fee)

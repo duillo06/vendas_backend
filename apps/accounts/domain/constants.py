@@ -11,6 +11,7 @@ ALL_PERMISSIONS = [
     "promotions.manage",
     "connections.manage",
     "settings.manage",
+    "tables.manage",
     "employees.manage",
     "reports.view",
 ]
@@ -33,6 +34,7 @@ SYSTEM_ROLES = {
             "customers.manage",
             "promotions.manage",
             "connections.manage",
+            "tables.manage",
             "reports.view",
         ],
     },

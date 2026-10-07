@@ -6,6 +6,34 @@ from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus
 from core.models.tenant_model import TenantAwareModel
 
 
+class DiningTable(TenantAwareModel):
+    """Mesa do salão — QR aponta pra cá."""
+
+    number = models.CharField(max_length=20)
+    label = models.CharField(max_length=100, blank=True, default="")
+    capacity = models.PositiveIntegerField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    qr_token = models.CharField(max_length=64, unique=True)
+    qr_generated_at = models.DateTimeField(null=True, blank=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "dining_tables"
+        ordering = ["sort_order", "number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "number"],
+                name="unique_table_number_per_tenant",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant", "is_active", "sort_order"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Mesa {self.number}"
+
+
 class Order(TenantAwareModel):
     customer = models.ForeignKey(
         "customers.Customer",
@@ -31,6 +59,15 @@ class Order(TenantAwareModel):
     notes = models.TextField(blank=True, default="")
     internal_notes = models.TextField(blank=True, default="")
     delivery_address = models.JSONField(null=True, blank=True)
+    table = models.ForeignKey(
+        DiningTable,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+        db_column="table_id",
+    )
+    table_number = models.CharField(max_length=20, blank=True, null=True)
     customer_name = models.CharField(max_length=200)
     customer_phone = models.CharField(max_length=20)
     estimated_prep_at = models.DateTimeField(null=True, blank=True)
@@ -61,6 +98,8 @@ class Order(TenantAwareModel):
         indexes = [
             models.Index(fields=["tenant", "status", "-created_at"]),
             models.Index(fields=["tenant", "customer", "-created_at"]),
+            models.Index(fields=["tenant", "delivery_type", "status", "-created_at"]),
+            models.Index(fields=["tenant", "table", "-created_at"]),
         ]
 
     def __str__(self) -> str:
