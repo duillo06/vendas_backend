@@ -41,3 +41,20 @@ class InvalidOrderTransition(DomainException):
 
     def __init__(self, from_status: str, to_status: str):
         super().__init__(f"Transição inválida: {from_status} → {to_status}")
+
+
+class TableNotFoundError(DomainException):
+    code = "TABLE_NOT_FOUND"
+    message = (
+        "Não encontramos essa mesa. Confira o número ou peça ajuda ao atendimento"
+    )
+
+
+class TableInactiveError(DomainException):
+    code = "TABLE_INACTIVE"
+    message = "Esta mesa não está aceitando pedidos no momento"
+
+
+class DineInNotAcceptedError(DomainException):
+    code = "DINE_IN_NOT_ACCEPTED"
+    message = "Este estabelecimento não aceita pedidos na mesa"

@@ -49,6 +49,7 @@ class AlertSeverity(models.TextChoices):
 EVENT_ORDER_RECEIVED = "order.received"
 EVENT_ORDER_CONFIRMED = "order.confirmed"
 EVENT_ORDER_PREPARING = "order.preparing"
+EVENT_ORDER_READY_FOR_PICKUP = "order.ready_for_pickup"
 EVENT_ORDER_OUT_FOR_DELIVERY = "order.out_for_delivery"
 EVENT_ORDER_DELIVERED = "order.delivered"
 EVENT_PAYMENT_APPROVED = "payment.approved"
@@ -58,6 +59,7 @@ PHASE1_EVENT_KEYS = (
     EVENT_ORDER_RECEIVED,
     EVENT_ORDER_CONFIRMED,
     EVENT_ORDER_PREPARING,
+    EVENT_ORDER_READY_FOR_PICKUP,
     EVENT_ORDER_OUT_FOR_DELIVERY,
     EVENT_ORDER_DELIVERED,
     EVENT_PAYMENT_APPROVED,

@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
-from django.db.models.functions import TruncHour, TruncDate
+from django.db.models.functions import TruncDate, TruncHour
 from django.utils import timezone
 
 from apps.catalog.models import Product

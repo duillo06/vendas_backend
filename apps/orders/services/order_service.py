@@ -19,6 +19,7 @@ from apps.orders.domain.enums import (
     PaymentStatus,
 )
 from apps.orders.domain.exceptions import (
+    DineInNotAcceptedError,
     EmptyCartError,
     InvalidOrderTransition,
     MinOrderValueError,
@@ -33,6 +34,7 @@ from apps.orders.models import (
     OrderStatusHistory,
 )
 from apps.orders.services.cart_validation_service import CartValidationService
+from apps.orders.services.table_service import TableService
 from core.utils.money import round_money
 
 
@@ -101,6 +103,18 @@ class OrderService:
             )
 
         delivery_type = data["delivery_type"]
+        OrderService._assert_channel_accepted(settings=settings, delivery_type=delivery_type)
+
+        dining_table = None
+        table_number = None
+        if delivery_type == DeliveryType.DINE_IN:
+            dining_table = TableService.resolve_for_checkout(
+                tenant=tenant,
+                table_id=data.get("table_id"),
+                qr_token=data.get("qr_token"),
+            )
+            table_number = dining_table.number
+
         address = data.get("address") if delivery_type == DeliveryType.DELIVERY else None
         if delivery_type == DeliveryType.DELIVERY:
             OrderService._assert_delivery_area(settings=settings, address=address)
@@ -113,7 +127,9 @@ class OrderService:
         )
         total = round_money(subtotal + delivery_fee)
 
-        payment_method = data["payment_method"]
+        payment_method = data.get("payment_method") or (
+            PaymentMethod.PAY_AT_VENUE if delivery_type == DeliveryType.DINE_IN else None
+        )
         change_for = data.get("change_for")
         if payment_method == PaymentMethod.CASH:
             if change_for is None:
@@ -125,7 +141,32 @@ class OrderService:
 
                 raise ValidationError({"change_for": "Troco deve ser maior que o total"})
 
-        if authenticated_customer is not None:
+        if delivery_type == DeliveryType.DINE_IN:
+            # mesa: sem WhatsApp — convidado anônimo (ou conta logada, se tiver)
+            display_name = (data.get("customer_name") or "").strip() or f"Mesa {table_number}"
+            if authenticated_customer is not None:
+                if authenticated_customer.tenant_id != tenant.id:
+                    raise ValidationError(
+                        {"customer_id": "Cliente não pertence a este estabelecimento"}
+                    )
+                customer = authenticated_customer
+                if display_name and display_name != f"Mesa {table_number}":
+                    # só atualiza o nome se a pessoa digitou algo
+                    from apps.customers.domain.validators import split_customer_name
+
+                    first, last = split_customer_name(display_name)
+                    customer.first_name = first
+                    customer.last_name = last
+                    customer.save(update_fields=["first_name", "last_name", "updated_at"])
+            else:
+                customer = CustomerService.create_mesa_guest(
+                    tenant=tenant,
+                    table_number=table_number or "?",
+                    name=display_name,
+                )
+            customer_name_snapshot = display_name
+            customer_phone_snapshot = ""
+        elif authenticated_customer is not None:
             if authenticated_customer.tenant_id != tenant.id:
                 raise ValidationError({"customer_id": "Cliente não pertence a este estabelecimento"})
             customer = CustomerService.update_from_checkout(
@@ -134,6 +175,8 @@ class OrderService:
                 phone=data["customer_phone"],
                 email=data.get("customer_email"),
             )
+            customer_name_snapshot = data["customer_name"].strip()
+            customer_phone_snapshot = customer.phone
         else:
             customer = CustomerService.get_or_create_from_checkout(
                 tenant=tenant,
@@ -141,6 +184,8 @@ class OrderService:
                 phone=data["customer_phone"],
                 email=data.get("customer_email"),
             )
+            customer_name_snapshot = data["customer_name"].strip()
+            customer_phone_snapshot = customer.phone
 
         order_number = OrderService._generate_order_number(tenant)
         now = timezone.now()
@@ -156,9 +201,11 @@ class OrderService:
             subtotal=subtotal,
             delivery_fee=delivery_fee,
             total=total,
-            customer_name=data["customer_name"].strip(),
-            customer_phone=customer.phone,
+            customer_name=customer_name_snapshot,
+            customer_phone=customer_phone_snapshot,
             delivery_address=address,
+            table=dining_table,
+            table_number=table_number,
             notes=(data.get("notes") or "").strip(),
             source=OrderSource.STOREFRONT,
             estimated_prep_at=now + prep_delta,
@@ -244,11 +291,18 @@ class OrderService:
         employee=None,
         notes: str | None = None,
     ) -> Order:
-        order = Order.objects.select_for_update().get(pk=order.pk)
+        order = Order.all_objects.select_for_update().get(pk=order.pk)
         current = order.status
 
         allowed = VALID_TRANSITIONS.get(current, [])
         if new_status not in allowed:
+            raise InvalidOrderTransition(current, new_status)
+
+        # mesa/retirada não sai pra entrega
+        if (
+            new_status == OrderStatus.OUT_FOR_DELIVERY
+            and order.delivery_type != DeliveryType.DELIVERY
+        ):
             raise InvalidOrderTransition(current, new_status)
 
         if new_status == OrderStatus.CANCELLED and not (notes or "").strip():
@@ -274,7 +328,7 @@ class OrderService:
     @staticmethod
     @transaction.atomic
     def update_payment(*, order: Order, status: str) -> Order:
-        order = Order.objects.select_for_update().get(pk=order.pk)
+        order = Order.all_objects.select_for_update().get(pk=order.pk)
         payment = order.payment
 
         if status != PaymentStatus.PAID:
@@ -284,6 +338,15 @@ class OrderService:
         payment.paid_at = timezone.now()
         payment.save(update_fields=["status", "paid_at", "updated_at"])
         return order
+
+    @staticmethod
+    def _assert_channel_accepted(*, settings, delivery_type: str) -> None:
+        if delivery_type == DeliveryType.DELIVERY and not settings.accepts_delivery:
+            raise ValidationError({"delivery_type": "Este estabelecimento não aceita entrega"})
+        if delivery_type == DeliveryType.PICKUP and not settings.accepts_pickup:
+            raise ValidationError({"delivery_type": "Este estabelecimento não aceita retirada"})
+        if delivery_type == DeliveryType.DINE_IN and not settings.accepts_dine_in:
+            raise DineInNotAcceptedError()
 
     @staticmethod
     def _calculate_delivery_fee(*, tenant: Company, delivery_type: str, subtotal: Decimal) -> Decimal:

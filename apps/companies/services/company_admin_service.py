@@ -29,6 +29,7 @@ class CompanyAdminService:
             "estimated_delivery_time": settings.estimated_delivery_time,
             "accepts_delivery": settings.accepts_delivery,
             "accepts_pickup": settings.accepts_pickup,
+            "accepts_dine_in": settings.accepts_dine_in,
             "delivery_city": settings.delivery_city or "",
             "delivery_state": settings.delivery_state or "",
             "delivery_city_id": settings.delivery_city_ref_id,

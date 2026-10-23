@@ -34,6 +34,12 @@ from apps.companies.views.admin_views import (
 )
 from apps.customers.views.admin_views import AdminCustomerDetailView, AdminCustomerListView
 from apps.orders.views.admin_views import AdminOrderViewSet
+from apps.orders.views.table_admin_views import (
+    AdminTableBulkView,
+    AdminTableQrView,
+    AdminTableRegenerateQrView,
+    AdminTableViewSet,
+)
 from apps.promotions.views.admin_views import AdminCampaignViewSet
 
 urlpatterns = [
@@ -66,6 +72,31 @@ urlpatterns = [
         "orders/<uuid:pk>/payment/",
         AdminOrderViewSet.as_view({"patch": "update_payment"}),
         name="admin-order-payment",
+    ),
+    path(
+        "tables/",
+        AdminTableViewSet.as_view({"get": "list", "post": "create"}),
+        name="admin-tables",
+    ),
+    path(
+        "tables/bulk/",
+        AdminTableBulkView.as_view(),
+        name="admin-tables-bulk",
+    ),
+    path(
+        "tables/<uuid:pk>/",
+        AdminTableViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="admin-table-detail",
+    ),
+    path(
+        "tables/<uuid:pk>/regenerate-qr/",
+        AdminTableRegenerateQrView.as_view(),
+        name="admin-table-regenerate-qr",
+    ),
+    path(
+        "tables/<uuid:pk>/qr/",
+        AdminTableQrView.as_view(),
+        name="admin-table-qr",
     ),
     path(
         "categories/",

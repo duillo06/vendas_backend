@@ -36,6 +36,7 @@ class PaymentMethod(models.TextChoices):
     CASH = "cash", "Dinheiro"
     PIX = "pix", "PIX"
     CARD_ON_DELIVERY = "card_on_delivery", "Cartão na entrega"
+    PAY_AT_VENUE = "pay_at_venue", "Pagar no local"
 
 
 class PaymentStatus(models.TextChoices):

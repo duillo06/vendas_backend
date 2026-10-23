@@ -18,6 +18,9 @@ class OrderSelector:
         if delivery_type := params.get("delivery_type"):
             qs = qs.filter(delivery_type=delivery_type)
 
+        if table_id := params.get("table_id"):
+            qs = qs.filter(table_id=table_id)
+
         if created_after := params.get("created_after"):
             qs = qs.filter(created_at__date__gte=created_after)
 
@@ -28,7 +31,8 @@ class OrderSelector:
             qs = qs.filter(
                 Q(order_number__icontains=search)
                 | Q(customer_name__icontains=search)
-                | Q(customer_phone__icontains=search),
+                | Q(customer_phone__icontains=search)
+                | Q(table_number__icontains=search),
             )
 
         if params.get("active") in ("true", "1", "True"):

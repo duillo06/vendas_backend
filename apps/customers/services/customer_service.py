@@ -1,3 +1,5 @@
+import secrets
+
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -40,6 +42,20 @@ class CustomerService:
             )
 
         return customer
+
+    @staticmethod
+    def create_mesa_guest(*, tenant: Company, table_number: str, name: str | None = None) -> Customer:
+        # convidado anônimo da mesa — telefone sintético único (não é WhatsApp)
+        first_name, last_name = split_customer_name((name or "").strip() or f"Mesa {table_number}")
+        # phone max 20: "mesa-" + 14 hex = 19
+        phone = f"mesa-{secrets.token_hex(7)}"
+        return Customer.all_objects.create(
+            tenant=tenant,
+            phone=phone,
+            first_name=first_name,
+            last_name=last_name,
+            email=None,
+        )
 
     @staticmethod
     def update_from_checkout(

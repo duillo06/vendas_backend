@@ -15,6 +15,12 @@ ALLOWED_HOSTS: list[str] = []
 
 # host do storefront sem subdomínio (demo.{domínio})
 STOREFRONT_BASE_DOMAIN = os.environ.get("STOREFRONT_BASE_DOMAIN", "foodservice.app")
+# QR da mesa: use placeholders {subdomain} e {token}
+# local: http://{subdomain}.localhost:5174/mesa/{token}
+STOREFRONT_MESA_URL_TEMPLATE = os.environ.get(
+    "STOREFRONT_MESA_URL_TEMPLATE",
+    "https://{subdomain}.{domain}/mesa/{token}",
+)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
