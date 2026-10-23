@@ -52,7 +52,7 @@ def test_preferences_patch_dashboard_order(api_client, demo_with_owner):
         "/api/v1/auth/me/preferences/",
         {
             "dashboard": {
-                "widget_order": ["top_products", "sales", "customers"],
+                "widget_order": ["top_products", "hours", "customers"],
                 "hidden_widgets": ["slow_products"],
             }
         },
@@ -62,7 +62,7 @@ def test_preferences_patch_dashboard_order(api_client, demo_with_owner):
     assert response.status_code == 200
     body = response.json()
     assert body["dashboard"]["widget_order"][0] == "top_products"
-    assert "sales" in body["dashboard"]["widget_order"]
+    assert body["dashboard"]["widget_order"][1] == "hours"
     assert "slow_products" in body["dashboard"]["hidden_widgets"]
 
     again = api_client.get(
