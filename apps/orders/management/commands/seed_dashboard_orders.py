@@ -16,7 +16,13 @@ from apps.catalog.services.seed_catalog import seed_demo_catalog
 from apps.companies.models import Company
 from apps.companies.services.onboarding_service import OnboardingService
 from apps.customers.models import Customer
-from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus, PaymentMethod, PaymentStatus
+from apps.orders.domain.enums import (
+    DeliveryType,
+    OrderSource,
+    OrderStatus,
+    PaymentMethod,
+    PaymentStatus,
+)
 from apps.orders.models import Order, OrderItem, OrderPayment
 
 SEED_TAG = "seed_dashboard"
@@ -336,5 +342,5 @@ class Command(BaseCommand):
         )[0]
 
     def _pick_payment(self) -> str:
-        methods, weights = zip(*PAYMENT_WEIGHTS)
+        methods, weights = zip(*PAYMENT_WEIGHTS, strict=True)
         return random.choices(methods, weights=weights, k=1)[0]
