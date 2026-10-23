@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from apps.communications.domain.catalog import PREVIEW_SAMPLES, SITUATION_CATALOG
 from apps.communications.domain.enums import (
+    EVENT_ORDER_READY_FOR_PICKUP,
     ORDER_STATUS_TO_EVENT,
     Channel,
     ConnectionStatus,
@@ -201,10 +202,20 @@ def _enqueue_send(dispatch_id: str) -> None:
     send_dispatch.delay(dispatch_id)
 
 
+def event_key_for_order(*, status: str, delivery_type: str) -> str | None:
+    # pronto da retirada tem aviso próprio; entrega avisa quando sai
+    if status == "ready" and delivery_type == "pickup":
+        return EVENT_ORDER_READY_FOR_PICKUP
+    return ORDER_STATUS_TO_EVENT.get(status)
+
+
 def emit_order_status_event(*, order) -> None:
     """chamado pelo OrderService — fail soft"""
     try:
-        event_key = ORDER_STATUS_TO_EVENT.get(order.status)
+        event_key = event_key_for_order(
+            status=order.status,
+            delivery_type=getattr(order, "delivery_type", "") or "",
+        )
         if not event_key:
             return
 

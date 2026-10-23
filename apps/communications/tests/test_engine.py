@@ -7,7 +7,11 @@ from apps.communications.infrastructure.providers._fake.adapter import FakeWhats
 from apps.communications.infrastructure.providers.registry import register_provider
 from apps.communications.models import MessageDispatch
 from apps.communications.services.connection_service import ConnectionService
-from apps.communications.services.engine import CommunicationEngine, CommunicationEvent
+from apps.communications.services.engine import (
+    CommunicationEngine,
+    CommunicationEvent,
+    event_key_for_order,
+)
 from apps.communications.services.renderer import render, validate_body
 
 
@@ -89,4 +93,11 @@ def test_engine_skips_when_disabled(demo_company, fake_provider):
 @pytest.mark.django_db
 def test_situation_catalog_completo():
     assert "order.confirmed" in SITUATION_CATALOG
-    assert len(SITUATION_CATALOG) == 7
+    assert "order.ready_for_pickup" in SITUATION_CATALOG
+    assert len(SITUATION_CATALOG) == 8
+
+
+def test_aviso_pronto_so_na_retirada():
+    assert event_key_for_order(status="ready", delivery_type="pickup") == "order.ready_for_pickup"
+    assert event_key_for_order(status="ready", delivery_type="delivery") is None
+    assert event_key_for_order(status="ready", delivery_type="dine_in") is None

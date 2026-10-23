@@ -61,6 +61,17 @@ SITUATION_CATALOG: dict[str, dict] = {
             "{{restaurante}}"
         ),
     },
+    "order.ready_for_pickup": {
+        "title": "Pronto para retirada",
+        "description": "Quando o pedido de retirada fica pronto para o cliente buscar.",
+        "variables": ["cliente", "pedido", "restaurante"],
+        "seed": (
+            "Olá {{cliente}}!\n\n"
+            "Seu pedido {{pedido}} está pronto para retirada.\n"
+            "Pode vir buscar 😊\n\n"
+            "{{restaurante}}"
+        ),
+    },
     "order.out_for_delivery": {
         "title": "Pedido saiu para entrega",
         "description": "Quando o pedido sai para entrega.",
