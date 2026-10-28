@@ -101,6 +101,37 @@ def test_public_company_exposes_theme_after_patch(api_client, demo_admin):
 
 
 @pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_delivery_time_window_saved_and_public(api_client, demo_admin):
+    login = _login(api_client)
+    saved = api_client.patch(
+        "/api/v1/admin/settings/",
+        {"settings": {"delivery_time_min": 60, "delivery_time_max": 90}},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert saved.status_code == 200
+    assert saved.json()["settings"]["delivery_time_min"] == 60
+    assert saved.json()["settings"]["delivery_time_max"] == 90
+
+    invalid = api_client.patch(
+        "/api/v1/admin/settings/",
+        {"settings": {"delivery_time_min": 90, "delivery_time_max": 60}},
+        format="json",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert invalid.status_code == 422
+
+    public = api_client.get(
+        "/api/v1/public/company/",
+        HTTP_HOST="demo.localhost:8001",
+    )
+    assert public.status_code == 200
+    assert public.json()["settings"]["delivery_time_min"] == 60
+    assert public.json()["settings"]["delivery_time_max"] == 90
+
+
+@pytest.mark.django_db
 def test_admin_dashboard_requires_auth(api_client):
     response = api_client.get("/api/v1/admin/dashboard/")
     assert response.status_code == 401

@@ -67,18 +67,23 @@ class CartValidationService:
                         f"Você pode pedir no máximo {limit} unidades de {product.name} neste pedido."
                     )
 
-            raw_components = raw.get("components") or []
-            try:
-                chosen_parts = CompositionService.validate_selection(product, raw_components)
-            except ValueError as exc:
-                raise InvalidOptionsError(str(exc)) from exc
-
             raw_options = raw.get("options") or []
             selections = CartValidationService._group_options_by_product(product, raw_options)
 
             try:
                 selected_entries = PriceCalculator.validate_selections(product, selections)
             except InvalidOptionSelection as exc:
+                raise InvalidOptionsError(str(exc)) from exc
+
+            size_option_id = CartValidationService._selected_size_option_id(selected_entries)
+            raw_components = raw.get("components") or []
+            try:
+                chosen_parts = CompositionService.validate_selection(
+                    product,
+                    raw_components,
+                    size_option_id=size_option_id,
+                )
+            except ValueError as exc:
                 raise InvalidOptionsError(str(exc)) from exc
 
             price_with_options = PriceCalculator.calculate_item_price(product, selected_entries)
@@ -137,6 +142,14 @@ class CartValidationService:
             )
 
         return validated
+
+    @staticmethod
+    def _selected_size_option_id(selected_entries) -> str | None:
+        for entry in selected_entries:
+            kind = getattr(entry.group, "kind", "") or ""
+            if kind in {"size", "volume"}:
+                return str(entry.option.id)
+        return None
 
     @staticmethod
     def _group_options_by_product(product: Product, raw_options: list) -> dict[str, list[dict]]:

@@ -190,7 +190,19 @@ class OrderService:
         order_number = OrderService._generate_order_number(tenant)
         now = timezone.now()
         prep_delta = timedelta(minutes=settings.estimated_prep_time)
-        delivery_delta = timedelta(minutes=settings.estimated_delivery_time)
+        # faixa da loja vale pra entrega; senão soma o preparo com o tempo antigo
+        if (
+            delivery_type == DeliveryType.DELIVERY
+            and settings.delivery_time_min
+            and settings.delivery_time_max
+        ):
+            estimated_delivery_at = now + timedelta(minutes=settings.delivery_time_max)
+        elif delivery_type == DeliveryType.DELIVERY:
+            estimated_delivery_at = now + prep_delta + timedelta(
+                minutes=settings.estimated_delivery_time
+            )
+        else:
+            estimated_delivery_at = None
 
         order = Order.objects.create(
             tenant=tenant,
@@ -209,11 +221,7 @@ class OrderService:
             notes=(data.get("notes") or "").strip(),
             source=OrderSource.STOREFRONT,
             estimated_prep_at=now + prep_delta,
-            estimated_delivery_at=(
-                now + prep_delta + delivery_delta
-                if delivery_type == DeliveryType.DELIVERY
-                else None
-            ),
+            estimated_delivery_at=estimated_delivery_at,
         )
 
         for item_data in validated_items:

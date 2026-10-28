@@ -50,6 +50,9 @@ class CompanySettings(TenantAwareModel):
     )
     estimated_prep_time = models.PositiveIntegerField(default=30)
     estimated_delivery_time = models.PositiveIntegerField(default=45)
+    # faixa que o cliente vê no cardápio, ex. 60 a 90 min — vazio usa o cálculo antigo
+    delivery_time_min = models.PositiveIntegerField(blank=True, null=True)
+    delivery_time_max = models.PositiveIntegerField(blank=True, null=True)
     accepts_delivery = models.BooleanField(default=True)
     accepts_pickup = models.BooleanField(default=True)
     accepts_dine_in = models.BooleanField(default=False)

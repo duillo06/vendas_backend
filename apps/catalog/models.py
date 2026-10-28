@@ -417,6 +417,8 @@ class CategoryLibraryItem(TenantAwareModel):
         db_column="option_id",
     )
     sort_order = models.IntegerField(default=0)
+    # ex.: tamanho → {"max_flavors": 2}
+    settings = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "category_library_items"

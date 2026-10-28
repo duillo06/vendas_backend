@@ -70,6 +70,7 @@ class CategoryRecipeLibrarySerializer(serializers.Serializer):
     option_group_id = serializers.UUIDField()
     sort_order = serializers.IntegerField(required=False, default=0)
     option_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False)
+    item_settings = serializers.DictField(required=False, default=dict)
 
 
 class CategoryRecipeOptionPriceSerializer(serializers.Serializer):
