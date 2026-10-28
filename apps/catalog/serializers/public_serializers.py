@@ -247,13 +247,19 @@ class ProductDetailPublicSerializer(serializers.ModelSerializer):
         config = getattr(obj, "composition", None)
         if config is None or not config.is_enabled:
             return None
-        return {
+        from apps.catalog.services.category_recipe_service import CategoryRecipeService
+
+        max_by_size = CategoryRecipeService.size_max_flavors_map(obj.category)
+        payload = {
             "enabled": True,
             "label": config.label or "Escolher outro sabor",
             "min_parts": config.min_parts,
             "max_parts": config.max_parts,
             "pricing_rule": config.pricing_rule,
         }
+        if max_by_size:
+            payload["max_parts_by_size"] = max_by_size
+        return payload
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

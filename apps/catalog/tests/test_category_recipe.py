@@ -114,6 +114,48 @@ def test_replace_recipe_roundtrip(recipe_setup):
 
 
 @pytest.mark.django_db
+def test_size_max_flavors_persisted(recipe_setup):
+    category = recipe_setup["category"]
+    group = recipe_setup["group"]
+    pequena = recipe_setup["pequena"]
+    grande = recipe_setup["grande"]
+
+    result = CategoryRecipeService.replace(
+        category,
+        data={
+            "capabilities": [
+                {"kind": "size", "enabled": True, "is_required": True, "sort_order": 0},
+                {
+                    "kind": "half",
+                    "enabled": True,
+                    "sort_order": 1,
+                    "settings": {"max_parts": 2, "pricing_rule": "highest"},
+                },
+            ],
+            "libraries": [
+                {
+                    "kind": "size",
+                    "option_group_id": str(group.id),
+                    "option_ids": [str(pequena.id), str(grande.id)],
+                    "item_settings": {
+                        str(pequena.id): {"max_flavors": 1},
+                        str(grande.id): {"max_flavors": 2},
+                    },
+                }
+            ],
+        },
+    )
+
+    options = {row["id"]: row for row in result["libraries"][0]["options"]}
+    assert options[str(pequena.id)]["settings"]["max_flavors"] == 1
+    assert options[str(grande.id)]["settings"]["max_flavors"] == 2
+    assert CategoryRecipeService.size_max_flavors_map(category) == {
+        str(pequena.id): 1,
+        str(grande.id): 2,
+    }
+
+
+@pytest.mark.django_db
 def test_replace_rejects_empty_options(recipe_setup):
     category = recipe_setup["category"]
     group = recipe_setup["group"]

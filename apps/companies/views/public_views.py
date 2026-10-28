@@ -43,6 +43,8 @@ class PublicCompanyView(APIView):
                     ),
                     "estimated_prep_time": settings.estimated_prep_time,
                     "estimated_delivery_time": settings.estimated_delivery_time,
+                    "delivery_time_min": settings.delivery_time_min,
+                    "delivery_time_max": settings.delivery_time_max,
                     "accepts_delivery": settings.accepts_delivery,
                     "accepts_pickup": settings.accepts_pickup,
                     "accepts_dine_in": settings.accepts_dine_in,

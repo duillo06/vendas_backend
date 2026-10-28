@@ -57,9 +57,18 @@ class CategoryRecipeService:
                     "sort_order": lib.sort_order,
                     "option_ids": [str(item.option_id) for item in items],
                     "options": [
-                        {"id": str(item.option_id), "name": item.option.name}
+                        {
+                            "id": str(item.option_id),
+                            "name": item.option.name,
+                            "settings": item.settings or {},
+                        }
                         for item in items
                     ],
+                    "item_settings": {
+                        str(item.option_id): item.settings or {}
+                        for item in items
+                        if item.settings
+                    },
                 }
             )
 
@@ -144,12 +153,20 @@ class CategoryRecipeService:
                     pricing_config={"strategy": "replace_base"}
                 )
 
+            item_settings = raw.get("item_settings") or {}
             for opt_index, option_id in enumerate(raw.get("option_ids") or []):
+                oid = str(option_id)
+                raw_settings = item_settings.get(oid) or item_settings.get(option_id) or {}
+                settings = CategoryRecipeService._normalize_item_settings(
+                    kind=kind,
+                    settings=raw_settings if isinstance(raw_settings, dict) else {},
+                )
                 CategoryLibraryItem.all_objects.create(
                     tenant_id=category.tenant_id,
                     category_library=lib,
                     option_id=option_id,
                     sort_order=opt_index,
+                    settings=settings,
                 )
 
         if template_key is not None:
@@ -222,3 +239,53 @@ class CategoryRecipeService:
             missing = [oid for oid in option_ids if oid not in valid]
             if missing:
                 raise CategoryRecipeError("Item não pertence a este conjunto da base")
+
+            item_settings = raw.get("item_settings") or {}
+            if item_settings and not isinstance(item_settings, dict):
+                raise CategoryRecipeError("Configuração dos tamanhos inválida")
+            for oid, settings in item_settings.items():
+                if str(oid) not in valid:
+                    raise CategoryRecipeError("Configuração aponta tamanho fora da receita")
+                if settings is not None and not isinstance(settings, dict):
+                    raise CategoryRecipeError("Configuração dos tamanhos inválida")
+                CategoryRecipeService._normalize_item_settings(
+                    kind=kind,
+                    settings=settings or {},
+                )
+
+    @staticmethod
+    def _normalize_item_settings(*, kind: str, settings: dict) -> dict:
+        if not settings:
+            return {}
+        out: dict = {}
+        # só tamanho/volume usam máximo de sabores por opção
+        if kind in {CatalogKind.SIZE, CatalogKind.VOLUME} and "max_flavors" in settings:
+            try:
+                max_flavors = int(settings["max_flavors"])
+            except (TypeError, ValueError):
+                raise CategoryRecipeError("Máximo de sabores inválido") from None
+            if max_flavors < 1 or max_flavors > 4:
+                raise CategoryRecipeError("Máximo de sabores vai de 1 a 4")
+            out["max_flavors"] = max_flavors
+        return out
+
+    @staticmethod
+    def size_max_flavors_map(category: Category) -> dict[str, int]:
+        """option_id → máximo de sabores, a partir dos tamanhos da receita."""
+        libs = CategoryLibrary.all_objects.filter(
+            category=category,
+            kind=CatalogKind.SIZE,
+        )
+        out: dict[str, int] = {}
+        for lib in libs:
+            for item in CategoryLibraryItem.all_objects.filter(category_library=lib):
+                raw = (item.settings or {}).get("max_flavors")
+                if raw is None:
+                    continue
+                try:
+                    value = int(raw)
+                except (TypeError, ValueError):
+                    continue
+                if 1 <= value <= 4:
+                    out[str(item.option_id)] = value
+        return out

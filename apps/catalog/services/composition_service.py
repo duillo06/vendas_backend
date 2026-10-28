@@ -47,7 +47,26 @@ class CompositionService:
         return qs.filter(category_id=category_id).order_by("sort_order", "name")
 
     @staticmethod
-    def validate_selection(product: Product, component_ids: list) -> list[Product]:
+    def resolve_max_parts(product: Product, *, size_option_id: str | None = None) -> int:
+        """Teto de sabores: regra do tamanho, senão o da composição."""
+        config = CompositionService.get_config(product)
+        if config is None:
+            return 1
+        if size_option_id:
+            from apps.catalog.services.category_recipe_service import CategoryRecipeService
+
+            by_size = CategoryRecipeService.size_max_flavors_map(product.category)
+            if size_option_id in by_size:
+                return by_size[size_option_id]
+        return int(config.max_parts)
+
+    @staticmethod
+    def validate_selection(
+        product: Product,
+        component_ids: list,
+        *,
+        size_option_id: str | None = None,
+    ) -> list[Product]:
         """Valida os produtos escolhidos pra compor e devolve na ordem recebida."""
         config = CompositionService.get_config(product)
         if config is None:
@@ -58,10 +77,14 @@ class CompositionService:
         clean_ids = [str(cid) for cid in component_ids if cid]
         # total de partes = principal + escolhidos
         # max = teto; min nunca obriga combinar (sempre pode pedir só o principal)
+        max_parts = CompositionService.resolve_max_parts(
+            product,
+            size_option_id=size_option_id,
+        )
         total_parts = 1 + len(clean_ids)
-        if total_parts > config.max_parts:
+        if total_parts > max_parts:
             raise ValueError(
-                f"Você pode combinar no máximo {config.max_parts - 1} "
+                f"Você pode combinar no máximo {max_parts - 1} "
                 f"produto(s) com {product.name}",
             )
 
