@@ -76,6 +76,7 @@ def test_admin_orders_list_and_detail(api_client, demo_orders_store, pending_ord
     body = list_response.json()
     assert body["count"] >= 1
     assert body["results"][0]["order_number"]
+    assert body["results"][0]["source"] == "storefront"
 
     detail_response = api_client.get(
         f"/api/v1/admin/orders/{pending_order['id']}/",
@@ -84,6 +85,7 @@ def test_admin_orders_list_and_detail(api_client, demo_orders_store, pending_ord
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["status"] == "pending"
+    assert detail["source"] == "storefront"
     assert len(detail["items"]) == 1
 
 

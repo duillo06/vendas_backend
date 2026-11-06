@@ -53,6 +53,10 @@ class TemplateTestSerializer(serializers.Serializer):
     body = serializers.CharField(required=False, allow_blank=True)
 
 
+class OrderingToggleSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+
+
 class ConnectionTestSerializer(serializers.Serializer):
     message = serializers.CharField(
         required=False,

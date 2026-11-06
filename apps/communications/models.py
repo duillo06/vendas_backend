@@ -39,6 +39,8 @@ class CommunicationConnection(TenantAwareModel):
     last_health_at = models.DateTimeField(null=True, blank=True)
     last_health_status = models.JSONField(default=dict, blank=True)
     last_error_code = models.CharField(max_length=40, blank=True, default="")
+    # conversa de pedido — desligada até o comerciante ligar
+    ordering_enabled = models.BooleanField(default=False)
 
     class Meta:
         db_table = "communication_connections"
@@ -149,6 +151,36 @@ class MessageDispatch(TenantAwareModel):
                 fields=["tenant", "idempotency_key"],
                 condition=~models.Q(idempotency_key=""),
                 name="uniq_msg_disp_tenant_idem",
+            ),
+        ]
+
+
+class WhatsAppOrderSession(TenantAwareModel):
+    """rascunho da conversa — ainda não é pedido"""
+
+    connection = models.ForeignKey(
+        CommunicationConnection,
+        on_delete=models.CASCADE,
+        related_name="order_sessions",
+        db_column="connection_id",
+    )
+    phone = models.CharField(max_length=20)
+    step = models.CharField(max_length=40, default="menu")
+    draft = models.JSONField(default=dict, blank=True)
+    seen_message_ids = models.JSONField(default=list, blank=True)
+    expires_at = models.DateTimeField()
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "whatsapp_order_sessions"
+        indexes = [
+            models.Index(fields=["tenant", "phone"], name="wa_order_sess_tenant_phone"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "phone"],
+                condition=models.Q(closed_at__isnull=True),
+                name="uniq_open_wa_order_session",
             ),
         ]
 

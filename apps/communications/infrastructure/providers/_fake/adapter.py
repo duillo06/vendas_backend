@@ -19,6 +19,8 @@ class FakeWhatsAppAdapter:
     def __init__(self):
         self.connected = False
         self.sent: list[tuple[str, str]] = []
+        self.buttons: list[tuple] = []
+        self.lists: list[tuple] = []
         self.qr = "data:image/png;base64,fakeqr"
 
     def validate_credentials(self, *, base_url: str, api_key: str) -> ValidationResult:
@@ -44,6 +46,14 @@ class FakeWhatsAppAdapter:
     def send_text(self, ctx: ConnectionContext, *, to_e164: str, body: str) -> SendResult:
         self.sent.append((to_e164, body))
         return SendResult(provider_message_id="fake-1", accepted=True)
+
+    def send_buttons(self, ctx, *, to_e164: str, body: str, buttons: list) -> SendResult:
+        self.buttons.append((to_e164, body, buttons))
+        return SendResult(provider_message_id="fake-btn", accepted=True)
+
+    def send_list(self, ctx, *, to_e164: str, body: str, button_label: str, rows: list) -> SendResult:
+        self.lists.append((to_e164, body, button_label, rows))
+        return SendResult(provider_message_id="fake-list", accepted=True)
 
     def disconnect(self, ctx: ConnectionContext) -> None:
         self.connected = False

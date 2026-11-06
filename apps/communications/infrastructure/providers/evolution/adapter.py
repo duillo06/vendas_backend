@@ -62,6 +62,7 @@ class EvolutionWhatsAppAdapter:
                 "events": [
                     "QRCODE_UPDATED",
                     "CONNECTION_UPDATE",
+                    "MESSAGES_UPSERT",
                     "MESSAGES_UPDATE",
                     "SEND_MESSAGE",
                 ],
@@ -208,6 +209,65 @@ class EvolutionWhatsAppAdapter:
             msg_id = key.get("id") if isinstance(key, dict) else data.get("messageId")
         return SendResult(provider_message_id=str(msg_id) if msg_id else None, accepted=True)
 
+    def send_buttons(self, ctx: ConnectionContext, *, to_e164: str, body: str, buttons: list) -> SendResult:
+        client = self._client(ctx.base_url, ctx.api_key)
+        payload = {
+            "number": _digits(to_e164),
+            "title": "",
+            "description": body[:1024],
+            "footer": "",
+            "buttons": [
+                {"type": "reply", "displayText": label[:20], "id": item_id}
+                for item_id, label in buttons[:3]
+            ],
+        }
+        return self._send_message(client, f"/message/sendButtons/{ctx.instance_name}", payload)
+
+    def send_list(
+        self,
+        ctx: ConnectionContext,
+        *,
+        to_e164: str,
+        body: str,
+        button_label: str,
+        rows: list,
+    ) -> SendResult:
+        client = self._client(ctx.base_url, ctx.api_key)
+        payload = {
+            "number": _digits(to_e164),
+            "title": "Cardápio",
+            "description": body[:1024],
+            "buttonText": (button_label or "Ver opções")[:20],
+            "footerText": "",
+            "sections": [
+                {
+                    "title": "Opções",
+                    "rows": [
+                        {
+                            "title": title[:24],
+                            "description": (desc or title or "Escolher")[:72],
+                            "rowId": item_id,
+                        }
+                        for item_id, title, desc in rows[:10]
+                    ],
+                }
+            ],
+        }
+        return self._send_message(client, f"/message/sendList/{ctx.instance_name}", payload)
+
+    def _send_message(self, client, path: str, payload: dict) -> SendResult:
+        try:
+            status, data = client.request("POST", path, body=payload)
+        except EvolutionHttpError as exc:
+            raise EvolutionHttpError(exc.error_code) from exc
+        if status not in (200, 201):
+            raise EvolutionHttpError("send_failed", status=status, detail=data)
+        msg_id = None
+        if isinstance(data, dict):
+            key = data.get("key") or {}
+            msg_id = key.get("id") if isinstance(key, dict) else data.get("messageId")
+        return SendResult(provider_message_id=str(msg_id) if msg_id else None, accepted=True)
+
     def disconnect(self, ctx: ConnectionContext) -> None:
         client = self._client(ctx.base_url, ctx.api_key)
         instance = ctx.instance_name
@@ -223,7 +283,8 @@ class EvolutionWhatsAppAdapter:
             return []
 
         event_name = str(data.get("event") or data.get("type") or "").upper()
-        payload = data.get("data") if isinstance(data.get("data"), dict) else data
+        raw_data = data.get("data", data)
+        payload = raw_data if isinstance(raw_data, dict) else {}
         events: list[ProviderEvent] = []
 
         if "QRCODE" in event_name:
@@ -248,7 +309,82 @@ class EvolutionWhatsAppAdapter:
                 )
             )
 
-        if "MESSAGES_UPDATE" in event_name or "SEND_MESSAGE" in event_name:
+        normalized = event_name.replace(".", "_")
+        if normalized == "MESSAGES_UPSERT":
+            events.extend(_inbound_events(raw_data))
+        elif "MESSAGES_UPDATE" in normalized or "SEND_MESSAGE" in normalized:
             events.append(ProviderEvent(kind="message_ack", payload=payload if isinstance(payload, dict) else {}))
 
         return events
+
+
+def _message_nodes(payload) -> list[dict]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    nested = payload.get("messages")
+    if isinstance(nested, list):
+        return [item for item in nested if isinstance(item, dict)]
+    return [payload]
+
+
+def _inbound_events(payload) -> list[ProviderEvent]:
+    events = []
+    for node in _message_nodes(payload):
+        event = _inbound_from_node(node)
+        if event is not None:
+            events.append(event)
+    return events
+
+
+def _inbound_from_node(node: dict) -> ProviderEvent | None:
+    key = node.get("key") if isinstance(node.get("key"), dict) else {}
+    if key.get("fromMe") in (True, "true", "True", 1):
+        return None
+    jid = str(key.get("remoteJid") or "")
+    if jid.endswith("@g.us") or jid == "status@broadcast":
+        return None
+    phone = _digits(jid.split("@")[0])
+    if len(phone) < 10:
+        return None
+    message = node.get("message") if isinstance(node.get("message"), dict) else {}
+    selected = _selected_id(message)
+    text = _message_text(message)
+    if not selected and not (text or "").strip():
+        return None
+    return ProviderEvent(
+        kind="message_inbound",
+        payload={
+            "phone": phone,
+            "text": (text or "").strip(),
+            "selected_id": selected,
+            "message_id": str(key.get("id") or ""),
+            "push_name": str(node.get("pushName") or ""),
+        },
+    )
+
+
+def _message_text(message: dict) -> str:
+    if isinstance(message.get("conversation"), str):
+        return message["conversation"]
+    extended = message.get("extendedTextMessage")
+    if isinstance(extended, dict) and isinstance(extended.get("text"), str):
+        return extended["text"]
+    return ""
+
+
+def _selected_id(message: dict) -> str:
+    listed = message.get("listResponseMessage")
+    if isinstance(listed, dict):
+        reply = listed.get("singleSelectReply") if isinstance(listed.get("singleSelectReply"), dict) else {}
+        selected = reply.get("selectedRowId") or listed.get("singleSelectReply")
+        if isinstance(selected, str) and selected:
+            return selected
+    buttons = message.get("buttonsResponseMessage")
+    if isinstance(buttons, dict) and buttons.get("selectedButtonId"):
+        return str(buttons["selectedButtonId"])
+    template = message.get("templateButtonReplyMessage")
+    if isinstance(template, dict) and template.get("selectedId"):
+        return str(template["selectedId"])
+    return ""

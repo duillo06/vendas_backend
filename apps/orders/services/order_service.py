@@ -88,6 +88,7 @@ class OrderService:
         tenant: Company,
         data: dict,
         authenticated_customer=None,
+        source: str = OrderSource.STOREFRONT,
     ) -> Order:
         items = data.get("items") or []
         if not items:
@@ -204,6 +205,10 @@ class OrderService:
         else:
             estimated_delivery_at = None
 
+        # quem não informa origem continua sendo o cardápio
+        if source not in OrderSource.values:
+            raise ValidationError({"source": "Origem do pedido inválida"})
+
         order = Order.objects.create(
             tenant=tenant,
             customer=customer,
@@ -219,7 +224,7 @@ class OrderService:
             table=dining_table,
             table_number=table_number,
             notes=(data.get("notes") or "").strip(),
-            source=OrderSource.STOREFRONT,
+            source=source,
             estimated_prep_at=now + prep_delta,
             estimated_delivery_at=estimated_delivery_at,
         )

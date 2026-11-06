@@ -38,6 +38,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "customer_phone": instance.customer_phone,
             "delivery_type": instance.delivery_type,
             "table_number": instance.table_number,
+            "source": instance.source,
             "total": float(instance.total),
             "items_count": getattr(instance, "items_count", instance.items.count()),
             "created_at": instance.created_at.isoformat().replace("+00:00", "Z"),
@@ -79,6 +80,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "order_number": instance.order_number,
             "status": instance.status,
             "delivery_type": instance.delivery_type,
+            "source": instance.source,
             "table_id": str(instance.table_id) if instance.table_id else None,
             "table_number": instance.table_number,
             "customer": {

@@ -18,6 +18,7 @@ from apps.communications.views.admin_views import (
     WhatsAppDisconnectView,
     WhatsAppHealthView,
     WhatsAppOptionsView,
+    WhatsAppOrderingView,
     WhatsAppQrView,
     WhatsAppStatsView,
     WhatsAppStatusView,
@@ -207,6 +208,11 @@ urlpatterns = [
         "communications/whatsapp/",
         WhatsAppStatusView.as_view(),
         name="admin-comms-whatsapp",
+    ),
+    path(
+        "communications/whatsapp/ordering/",
+        WhatsAppOrderingView.as_view(),
+        name="admin-comms-whatsapp-ordering",
     ),
     path(
         "communications/whatsapp/options/",

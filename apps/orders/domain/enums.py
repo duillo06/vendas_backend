@@ -48,5 +48,6 @@ class PaymentStatus(models.TextChoices):
 
 class OrderSource(models.TextChoices):
     STOREFRONT = "storefront", "Storefront"
+    WHATSAPP = "whatsapp", "WhatsApp"
     BACKOFFICE = "backoffice", "Backoffice"
     API = "api", "API"

@@ -506,6 +506,7 @@ class DashboardService:
                 "status",
                 "customer_name",
                 "total",
+                "source",
                 "created_at",
             )
         )
@@ -516,6 +517,7 @@ class DashboardService:
                 "status": row["status"],
                 "customer_name": row["customer_name"],
                 "total": float(row["total"]),
+                "source": row["source"],
                 "created_at": row["created_at"].isoformat().replace("+00:00", "Z"),
             }
             for row in recent

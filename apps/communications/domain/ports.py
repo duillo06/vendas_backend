@@ -67,6 +67,25 @@ class WhatsAppProvider(Protocol):
 
     def send_text(self, ctx: ConnectionContext, *, to_e164: str, body: str) -> SendResult: ...
 
+    def send_buttons(
+        self,
+        ctx: ConnectionContext,
+        *,
+        to_e164: str,
+        body: str,
+        buttons: list[tuple[str, str]],
+    ) -> SendResult: ...
+
+    def send_list(
+        self,
+        ctx: ConnectionContext,
+        *,
+        to_e164: str,
+        body: str,
+        button_label: str,
+        rows: list[tuple[str, str, str]],
+    ) -> SendResult: ...
+
     def disconnect(self, ctx: ConnectionContext) -> None: ...
 
     def parse_webhook(self, headers: dict, raw_body: bytes) -> list[ProviderEvent]: ...

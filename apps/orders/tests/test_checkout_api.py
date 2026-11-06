@@ -57,6 +57,59 @@ def test_checkout_happy_path(api_client, demo_store, x_burger_option_ids):
     assert body["order_number"] == "#0001"
     assert body["total"] >= 22
 
+    from apps.orders.domain.enums import OrderSource
+    from apps.orders.models import Order
+
+    order = Order.all_objects.get(id=body["id"])
+    assert order.source == OrderSource.STOREFRONT
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_public_checkout_ignores_source_in_body(api_client, demo_store, x_burger_option_ids):
+    from apps.orders.domain.enums import OrderSource
+    from apps.orders.models import Order
+
+    product_id, options = x_burger_option_ids
+    response = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {
+            "customer_name": "Maria Santos",
+            "customer_phone": "(11) 98765-4321",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "source": "whatsapp",
+            "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+        },
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert response.status_code == 201
+    order = Order.all_objects.get(id=response.json()["id"])
+    assert order.source == OrderSource.STOREFRONT
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_create_from_checkout_stores_whatsapp_source(demo_store, x_burger_option_ids):
+    from apps.orders.domain.enums import OrderSource
+    from apps.orders.services.order_service import OrderService
+
+    product_id, options = x_burger_option_ids
+    order = OrderService.create_from_checkout(
+        tenant=demo_store,
+        data={
+            "customer_name": "Maria Santos",
+            "customer_phone": "(11) 98765-4321",
+            "delivery_type": "pickup",
+            "payment_method": "pix",
+            "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+        },
+        source=OrderSource.WHATSAPP,
+    )
+    assert order.source == OrderSource.WHATSAPP
+
 
 @pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])

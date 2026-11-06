@@ -120,3 +120,37 @@ def run_all_connections_health() -> None:
             ConnectionService.run_health_check(connection=connection)
         except Exception:
             logger.exception("health falhou p/ connection %s", connection.id)
+
+
+@shared_task
+def handle_whatsapp_inbound(
+    connection_id: str,
+    phone: str,
+    message_id: str,
+    text: str,
+    selected_id: str,
+    push_name: str,
+) -> None:
+    from apps.communications.ordering.sender import send_replies
+    from apps.communications.ordering.service import OrderingService
+
+    try:
+        connection = CommunicationConnection.all_objects.select_related("tenant").get(id=connection_id)
+    except CommunicationConnection.DoesNotExist:
+        return
+    replies = OrderingService.handle_inbound(
+        connection=connection,
+        phone=phone,
+        message_id=message_id,
+        text=text,
+        selected_id=selected_id,
+        push_name=push_name,
+    )
+    if not replies:
+        return
+    try:
+        provider = get_provider(connection.provider_key)
+        ctx = ConnectionService.build_ctx(connection)
+        send_replies(provider, ctx, phone, replies)
+    except Exception:
+        logger.exception("resposta do pedido WhatsApp falhou")

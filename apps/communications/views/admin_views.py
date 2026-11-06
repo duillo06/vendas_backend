@@ -16,6 +16,7 @@ from apps.communications.models import MerchantAlert, MessageDispatch
 from apps.communications.serializers import (
     ConnectionTestSerializer,
     ConnectWhatsAppSerializer,
+    OrderingToggleSerializer,
     SituationBulkSerializer,
     TemplatePreviewSerializer,
     TemplateTestSerializer,
@@ -43,6 +44,7 @@ def _serialize_connection(connection) -> dict:
             "provider_key": "evolution",
             "connection_mode": None,
             "last_health": None,
+            "ordering_enabled": False,
             "active_alert": None,
         }
     meta = connection.provider_metadata or {}
@@ -63,6 +65,7 @@ def _serialize_connection(connection) -> dict:
         "last_error_message": human_error(connection.last_error_code)
         if connection.last_error_code
         else "",
+        "ordering_enabled": bool(connection.ordering_enabled),
         "active_alert": (
             {
                 "kind": alert.kind,
@@ -75,6 +78,31 @@ def _serialize_connection(connection) -> dict:
             else None
         ),
     }
+
+
+class WhatsAppOrderingView(APIView):
+    authentication_classes = [EmployeeJWTAuthentication]
+    permission_classes = [IsEmployeeAuthenticated]
+
+    def post(self, request):
+        if err := _forbid(request, self):
+            return err
+        serializer = OrderingToggleSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tenant = request.user.employee.tenant
+        connection = ConnectionService.get_whatsapp(tenant=tenant)
+        if connection is None:
+            return Response(
+                {"error": {"message": "Conecte o WhatsApp antes de receber pedidos por aqui."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        from apps.communications.ordering.service import OrderingService
+
+        OrderingService.set_enabled(
+            connection=connection,
+            enabled=serializer.validated_data["enabled"],
+        )
+        return Response(_serialize_connection(connection))
 
 
 class WhatsAppOptionsView(APIView):

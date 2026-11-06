@@ -379,6 +379,8 @@ class ConnectionService:
                     connection.save(
                         update_fields=["provider_metadata", "status", "updated_at"],
                     )
+            elif event.kind == "message_inbound":
+                ConnectionService._queue_inbound(connection, event.payload or {})
             elif event.kind == "connection_update":
                 state = str((event.payload or {}).get("state") or "").lower()
                 phone = (event.payload or {}).get("phone")
@@ -401,3 +403,21 @@ class ConnectionService:
                         ),
                         action_hint="Reconectar WhatsApp",
                     )
+
+    @staticmethod
+    def _queue_inbound(connection: CommunicationConnection, payload: dict) -> None:
+        # conversa desligada ou WhatsApp fora: ignora, sem mexer no QR
+        if not connection.ordering_enabled:
+            return
+        if connection.status != ConnectionStatus.CONNECTED:
+            return
+        from apps.communications.tasks import handle_whatsapp_inbound
+
+        handle_whatsapp_inbound.delay(
+            str(connection.id),
+            str(payload.get("phone") or ""),
+            str(payload.get("message_id") or ""),
+            str(payload.get("text") or ""),
+            str(payload.get("selected_id") or ""),
+            str(payload.get("push_name") or ""),
+        )
