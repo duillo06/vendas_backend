@@ -1,4 +1,5 @@
-from datetime import timedelta
+import zoneinfo
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -187,7 +188,8 @@ class OrderService:
             customer_name_snapshot = data["customer_name"].strip()
             customer_phone_snapshot = customer.phone
 
-        order_number = OrderService._generate_order_number(tenant)
+        business_date = OrderService._tenant_today(tenant)
+        order_number, numbering_cycle = OrderService._generate_order_number(tenant, business_date)
         now = timezone.now()
         prep_delta = timedelta(minutes=settings.estimated_prep_time)
         # faixa da loja vale pra entrega; senão soma o preparo com o tempo antigo
@@ -208,6 +210,8 @@ class OrderService:
             tenant=tenant,
             customer=customer,
             order_number=order_number,
+            business_date=business_date,
+            numbering_cycle=numbering_cycle,
             status=OrderStatus.PENDING,
             delivery_type=delivery_type,
             subtotal=subtotal,
@@ -370,9 +374,12 @@ class OrderService:
         return round_money(fee)
 
     @staticmethod
-    def _generate_order_number(tenant: Company) -> str:
-        """Próximo #NNNN do tenant — max numérico, não o último created_at
-        (seed com datas antigas quebrava a sequência)."""
+    def _tenant_today(tenant: Company) -> date:
+        tz = zoneinfo.ZoneInfo(tenant.timezone or "America/Sao_Paulo")
+        return timezone.now().astimezone(tz).date()
+
+    @staticmethod
+    def _lock_numbering(tenant: Company) -> None:
         from django.db import connection
 
         # serializa geração por tenant (mesmo com tabela vazia, no Postgres)
@@ -380,17 +387,50 @@ class OrderService:
             lock_key = (tenant.id.int % (2**31 - 1)) or 1
             with connection.cursor() as cursor:
                 cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
-        else:
-            # SQLite (testes): trava o que existir; race vazia é ok em unit test
-            list(
-                Order.all_objects.select_for_update()
-                .filter(tenant=tenant)
-                .order_by("pk")[:1]
-            )
+            return
+        # SQLite (testes): trava o que existir; race vazia é ok em unit test
+        list(
+            Order.all_objects.select_for_update()
+            .filter(tenant=tenant)
+            .order_by("pk")[:1]
+        )
+
+    @staticmethod
+    def _current_numbering_cycle(tenant: Company) -> int:
+        from apps.companies.models import CompanySettings
+
+        cycle = (
+            CompanySettings.all_objects.filter(tenant=tenant)
+            .values_list("order_number_cycle", flat=True)
+            .first()
+        )
+        return cycle or 1
+
+    @staticmethod
+    def reset_order_numbering(tenant: Company) -> str:
+        """Próximo pedido desta loja volta a #0001. Os já feitos ficam como estão."""
+        from apps.companies.models import CompanySettings
+
+        with transaction.atomic():
+            OrderService._lock_numbering(tenant)
+            settings = CompanySettings.all_objects.select_for_update().get(tenant=tenant)
+            settings.order_number_cycle = (settings.order_number_cycle or 1) + 1
+            settings.save(update_fields=["order_number_cycle", "updated_at"])
+        return "#0001"
+
+    @staticmethod
+    def _generate_order_number(tenant: Company, business_date: date) -> tuple[str, int]:
+        """Próximo #NNNN do dia e do ciclo desta loja. Outra loja não entra."""
+        OrderService._lock_numbering(tenant)
+        cycle = OrderService._current_numbering_cycle(tenant)
 
         max_num = 0
         for raw in (
-            Order.all_objects.filter(tenant=tenant)
+            Order.all_objects.filter(
+                tenant=tenant,
+                business_date=business_date,
+                numbering_cycle=cycle,
+            )
             .values_list("order_number", flat=True)
             .iterator(chunk_size=500)
         ):
@@ -398,7 +438,7 @@ class OrderService:
                 max_num = max(max_num, int(str(raw).lstrip("#")))
             except (TypeError, ValueError):
                 continue
-        return f"#{max_num + 1:04d}"
+        return f"#{max_num + 1:04d}", cycle
 
     @staticmethod
     def _record_status(order: Order, from_status: str | None, to_status: str, employee=None, notes=None):

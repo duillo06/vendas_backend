@@ -54,6 +54,11 @@ urlpatterns = [
     path("setup/dismiss/", AdminSetupDismissView.as_view(), name="admin-setup-dismiss"),
     path("ai/suggestions/", AdminAiSuggestionsStubView.as_view(), name="admin-ai-suggestions"),
     path(
+        "orders/reset-numbering/",
+        AdminOrderViewSet.as_view({"post": "reset_numbering"}),
+        name="admin-orders-reset-numbering",
+    ),
+    path(
         "orders/",
         AdminOrderViewSet.as_view({"get": "list"}),
         name="admin-orders",

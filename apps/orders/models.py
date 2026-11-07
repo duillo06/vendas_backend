@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus
 from core.models.tenant_model import TenantAwareModel
@@ -42,6 +43,10 @@ class Order(TenantAwareModel):
         db_column="customer_id",
     )
     order_number = models.CharField(max_length=20)
+    # dia local da loja — a sequência #0001 reinicia aqui
+    business_date = models.DateField(default=timezone.localdate)
+    # sobe no botão de reiniciar; pedidos antigos ficam no ciclo anterior
+    numbering_cycle = models.PositiveIntegerField(default=1)
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
@@ -87,8 +92,8 @@ class Order(TenantAwareModel):
         ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["tenant", "order_number"],
-                name="unique_order_number_per_tenant",
+                fields=["tenant", "business_date", "numbering_cycle", "order_number"],
+                name="unique_order_number_per_tenant_day_cycle",
             ),
             models.CheckConstraint(
                 condition=models.Q(total__gte=0),

@@ -60,10 +60,10 @@ def test_checkout_happy_path(api_client, demo_store, x_burger_option_ids):
 
 @pytest.mark.django_db
 @override_settings(ALLOWED_HOSTS=["*"])
-def test_checkout_order_number_uses_max_not_latest_created_at(
+def test_checkout_order_number_uses_max_of_today_not_latest_created_at(
     api_client, demo_store, x_burger_option_ids,
 ):
-    """Seed com created_at antigo + nº alto não pode reutilizar o próximo nº."""
+    """No dia, vale o maior nº — created_at antigo e o dia anterior não entram."""
     from datetime import timedelta
     from decimal import Decimal
 
@@ -72,6 +72,7 @@ def test_checkout_order_number_uses_max_not_latest_created_at(
     from apps.customers.models import Customer
     from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus
     from apps.orders.models import Order
+    from apps.orders.services.order_service import OrderService
 
     product_id, options = x_burger_option_ids
     customer = Customer.all_objects.create(
@@ -80,11 +81,28 @@ def test_checkout_order_number_uses_max_not_latest_created_at(
         last_name="Seed",
         phone="11999990000",
     )
+    today = OrderService._tenant_today(demo_store)
     old = timezone.now() - timedelta(days=3)
     Order.all_objects.create(
         tenant=demo_store,
         customer=customer,
+        order_number="#0099",
+        business_date=today - timedelta(days=1),
+        status=OrderStatus.COMPLETED,
+        delivery_type=DeliveryType.PICKUP,
+        subtotal=Decimal("10.00"),
+        delivery_fee=Decimal("0.00"),
+        total=Decimal("10.00"),
+        customer_name="Cliente Seed",
+        customer_phone="11999990000",
+        source=OrderSource.STOREFRONT,
+        created_at=old,
+    )
+    Order.all_objects.create(
+        tenant=demo_store,
+        customer=customer,
         order_number="#0008",
+        business_date=today,
         status=OrderStatus.COMPLETED,
         delivery_type=DeliveryType.PICKUP,
         subtotal=Decimal("10.00"),
@@ -99,6 +117,7 @@ def test_checkout_order_number_uses_max_not_latest_created_at(
         tenant=demo_store,
         customer=customer,
         order_number="#0007",
+        business_date=today,
         status=OrderStatus.COMPLETED,
         delivery_type=DeliveryType.PICKUP,
         subtotal=Decimal("10.00"),
@@ -125,6 +144,94 @@ def test_checkout_order_number_uses_max_not_latest_created_at(
 
     assert response.status_code == 201
     assert response.json()["order_number"] == "#0009"
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_checkout_order_number_restarts_daily_and_stays_per_tenant(
+    api_client, demo_store, x_burger_option_ids,
+):
+    from datetime import timedelta
+    from decimal import Decimal
+
+    from apps.companies.services.onboarding_service import OnboardingService
+    from apps.customers.models import Customer
+    from apps.orders.domain.enums import DeliveryType, OrderSource, OrderStatus
+    from apps.orders.models import Order
+    from apps.orders.services.order_service import OrderService
+
+    product_id, options = x_burger_option_ids
+    today = OrderService._tenant_today(demo_store)
+    customer = Customer.all_objects.create(
+        tenant=demo_store,
+        first_name="Cliente",
+        last_name="Ontem",
+        phone="11999990001",
+    )
+    Order.all_objects.create(
+        tenant=demo_store,
+        customer=customer,
+        order_number="#0042",
+        business_date=today - timedelta(days=1),
+        status=OrderStatus.COMPLETED,
+        delivery_type=DeliveryType.PICKUP,
+        subtotal=Decimal("10.00"),
+        total=Decimal("10.00"),
+        customer_name="Cliente Ontem",
+        customer_phone="11999990001",
+        source=OrderSource.STOREFRONT,
+    )
+
+    other = OnboardingService.create_company(
+        trade_name="Outra Loja",
+        subdomain="outra-loja",
+        email="outra@loja.com",
+        owner_email="outra@loja.com",
+        owner_password="demo1234",
+    )
+    other_customer = Customer.all_objects.create(
+        tenant=other,
+        first_name="Ana",
+        phone="11977770000",
+    )
+    Order.all_objects.create(
+        tenant=other,
+        customer=other_customer,
+        order_number="#0008",
+        business_date=OrderService._tenant_today(other),
+        status=OrderStatus.PENDING,
+        delivery_type=DeliveryType.PICKUP,
+        subtotal=Decimal("10.00"),
+        total=Decimal("10.00"),
+        customer_name="Ana",
+        customer_phone="11977770000",
+        source=OrderSource.STOREFRONT,
+    )
+
+    payload = {
+        "customer_name": "Maria Santos",
+        "customer_phone": "(11) 98765-4321",
+        "delivery_type": "pickup",
+        "payment_method": "pix",
+        "items": [{"product_id": product_id, "quantity": 1, "options": options}],
+    }
+    first = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        payload,
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+    second = api_client.post(
+        "/api/v1/public/orders/checkout/",
+        {**payload, "customer_phone": "(11) 98765-0002"},
+        format="json",
+        HTTP_HOST="demo.localhost:8001",
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.json()["order_number"] == "#0001"
+    assert second.json()["order_number"] == "#0002"
 
 
 @pytest.mark.django_db

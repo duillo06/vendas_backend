@@ -126,3 +126,47 @@ def test_admin_order_payment(api_client, demo_orders_store, pending_order):
     assert response.status_code == 200
     assert response.json()["payment"]["status"] == "paid"
     assert response.json()["payment"]["paid_at"] is not None
+
+
+@pytest.mark.django_db
+@override_settings(ALLOWED_HOSTS=["*"])
+def test_reset_order_numbering_restarts_next_order_for_this_tenant_only(
+    api_client, demo_orders_store, pending_order,
+):
+    from apps.catalog.models import Option, Product, ProductOptionGroup
+    from apps.companies.models import CompanySettings
+
+    assert pending_order["order_number"] == "#0001"
+    login = _login(api_client)
+
+    denied = api_client.post("/api/v1/admin/orders/reset-numbering/")
+    assert denied.status_code == 401
+
+    reset = api_client.post(
+        "/api/v1/admin/orders/reset-numbering/",
+        HTTP_AUTHORIZATION=f"Bearer {login['access']}",
+    )
+    assert reset.status_code == 200
+    assert reset.json()["next_order_number"] == "#0001"
+    assert CompanySettings.all_objects.get(tenant=demo_orders_store).order_number_cycle == 2
+
+    product = Product.all_objects.get(tenant=demo_orders_store, slug="x-burger")
+    link = ProductOptionGroup.all_objects.filter(product=product).select_related("option_group").first()
+    option = Option.all_objects.filter(option_group=link.option_group).first()
+    again = _checkout(
+        api_client,
+        str(product.id),
+        [{"option_id": str(option.id)}],
+    )
+    assert again.status_code == 201
+    assert again.json()["order_number"] == "#0001"
+    assert again.json()["id"] != pending_order["id"]
+
+    other = OnboardingService.create_company(
+        trade_name="Outra Loja",
+        subdomain="outra-num",
+        email="outra-num@loja.com",
+        owner_email="outra-num@loja.com",
+        owner_password="demo1234",
+    )
+    assert CompanySettings.all_objects.get(tenant=other).order_number_cycle == 1

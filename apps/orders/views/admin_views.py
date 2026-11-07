@@ -104,3 +104,10 @@ class AdminOrderViewSet(AdminOrderMixin, viewsets.ViewSet):
 
         order = OrderService.get_admin_order(tenant=self.get_tenant(), order_id=order.id)
         return Response(OrderDetailSerializer(order).data)
+
+    def reset_numbering(self, request):
+        if not HasPermission("orders.manage").has_permission(request, self):
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        next_number = OrderService.reset_order_numbering(self.get_tenant())
+        return Response({"next_order_number": next_number})

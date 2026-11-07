@@ -77,6 +77,8 @@ class CompanySettings(TenantAwareModel):
     print_settings = models.JSONField(blank=True, null=True)
     # Fase 4 — progresso do assistente de 1ª configuração
     setup = models.JSONField(blank=True, null=True, default=dict)
+    # sobe quando o painel pede pra recomeçar a numeração no meio do dia
+    order_number_cycle = models.PositiveIntegerField(default=1)
 
     class Meta:
         db_table = "company_settings"
