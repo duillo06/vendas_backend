@@ -1,3 +1,5 @@
+import logging
+
 from django.db import transaction
 from django.http import Http404
 from rest_framework import status
@@ -13,6 +15,8 @@ from apps.orders.services.order_service import OrderService
 from apps.orders.tasks import send_order_confirmation_email
 from core.tenancy.context import TenantContext
 from core.throttling import CheckoutThrottle
+
+logger = logging.getLogger(__name__)
 
 
 class PublicOrderMixin:
@@ -43,8 +47,17 @@ class CheckoutView(PublicOrderMixin, APIView):
             data=serializer.validated_data,
             authenticated_customer=authenticated_customer,
         )
-        transaction.on_commit(lambda: send_order_confirmation_email.delay(str(order.id)))
+        order_id = str(order.id)
+        # fila fora do ar não pode virar erro: o pedido já está salvo
+        transaction.on_commit(lambda: _enqueue_order_email(order_id))
         return Response(OrderPublicSerializer(order).data, status=status.HTTP_201_CREATED)
+
+
+def _enqueue_order_email(order_id: str) -> None:
+    try:
+        send_order_confirmation_email.delay(order_id)
+    except Exception:
+        logger.exception("pedido %s salvo, e-mail não entrou na fila", order_id)
 
 
 class PublicOrderDetailView(PublicOrderMixin, APIView):
