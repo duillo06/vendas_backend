@@ -15,6 +15,7 @@ from apps.catalog.models import Product
 from apps.catalog.services.seed_catalog import seed_demo_catalog
 from apps.companies.models import Company
 from apps.companies.services.onboarding_service import OnboardingService
+from apps.companies.services.settings_service import SettingsService
 from apps.customers.models import Customer
 from apps.orders.domain.enums import (
     DeliveryType,
@@ -135,14 +136,15 @@ class Command(BaseCommand):
             deleted = self._reset_seed_orders(company)
             self.stdout.write(f"Removidos {deleted} pedidos do seed anterior.")
 
-        next_num = self._next_order_number(company)
         tz = zoneinfo.ZoneInfo(company.timezone)
         today = timezone.now().astimezone(tz).date()
+        cycle = SettingsService.get_for_tenant(company).order_number_cycle or 1
 
         created = 0
         with transaction.atomic():
             for offset in range(days):
                 day = today - timedelta(days=offset)
+                next_num = self._next_order_number(company, day, cycle)
                 target = self._orders_for_day(day, per_day, is_today=offset == 0)
                 for _ in range(target):
                     when = self._pick_datetime(day, tz, is_today=offset == 0)
@@ -165,6 +167,8 @@ class Command(BaseCommand):
                         tenant=company,
                         customer=customer,
                         order_number=f"#{next_num:04d}",
+                        business_date=day,
+                        numbering_cycle=cycle,
                         status=status,
                         delivery_type=delivery,
                         subtotal=subtotal,
@@ -286,10 +290,10 @@ class Command(BaseCommand):
         qs.delete()
         return count
 
-    def _next_order_number(self, company: Company) -> int:
+    def _next_order_number(self, company: Company, day, cycle: int) -> int:
         max_num = 0
         for raw in (
-            Order.all_objects.filter(tenant=company)
+            Order.all_objects.filter(tenant=company, business_date=day, numbering_cycle=cycle)
             .values_list("order_number", flat=True)
             .iterator(chunk_size=500)
         ):
